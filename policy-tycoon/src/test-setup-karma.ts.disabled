@@ -1,0 +1,21 @@
+/**
+ * Test setup for Karma/Jasmine Angular application
+ * This file configures the testing environment for Karma with Jasmine
+ */
+
+// Import Angular testing utilities
+import 'zone.js';
+import 'zone.js/testing';
+import { getTestBed } from '@angular/core/testing';
+import {
+  BrowserDynamicTestingModule,
+  platformBrowserDynamicTesting
+} from '@angular/platform-browser-dynamic/testing';
+
+// Initialize the Angular testing environment
+getTestBed().initTestEnvironment(
+  BrowserDynamicTestingModule,
+  platformBrowserDynamicTesting()
+);
+
+console.log('✅ Test environment configured for Karma/Jasmine');
