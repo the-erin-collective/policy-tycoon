@@ -10,7 +10,7 @@ describe('SiteFinderService', () => {
 
   beforeEach(() => {
     const terrainSpy = jasmine.createSpyObj('TerrainGenerationService', ['isWaterAt', 'getHeightAt']);
-    const collisionSpy = jasmine.createSpyObj('CollisionDetectionService', ['isPassable']);
+    const collisionSpy = jasmine.createSpyObj('CollisionDetectionService', ['isBuildableLand']);
 
     TestBed.configureTestingModule({
       providers: [
@@ -37,7 +37,7 @@ describe('SiteFinderService', () => {
         return x < 0 || x > 4 || z < 0 || z > 4;
       });
 
-      collisionService.isPassable.and.returnValue(true);
+      collisionService.isBuildableLand.and.returnValue(true);
 
       const mapBounds = { minX: -5, maxX: 5, minZ: -5, maxZ: 5 };
       const result = service.findCityStartPoints(1, 20, mapBounds);
@@ -63,7 +63,7 @@ describe('SiteFinderService', () => {
         return x < 5 || x > 6 || z < 5 || z > 6;
       });
 
-      collisionService.isPassable.and.returnValue(true);
+      collisionService.isBuildableLand.and.returnValue(true);
 
       const mapBounds = { minX: 0, maxX: 10, minZ: 0, maxZ: 10 };
       const result = service.findCityStartPoints(1, 10, mapBounds); // Require area of 10
@@ -80,7 +80,7 @@ describe('SiteFinderService', () => {
         return x < 4 || x > 6 || z < 4 || z > 6;
       });
 
-      collisionService.isPassable.and.returnValue(true);
+      collisionService.isBuildableLand.and.returnValue(true);
 
       // @ts-ignore - accessing private method for testing
       const result = service.calculateBuildableArea(5, 5, new Set<string>());
@@ -96,7 +96,7 @@ describe('SiteFinderService', () => {
         return x === 5 && z === 5;
       });
 
-      collisionService.isPassable.and.returnValue(true);
+      collisionService.isBuildableLand.and.returnValue(true);
 
       // @ts-ignore - accessing private method for testing
       const result = service.calculateBuildableArea(5, 4, new Set<string>()); // Start north of water
@@ -108,7 +108,7 @@ describe('SiteFinderService', () => {
       // Setup a 3x3 area but with impassable connections
       terrainService.isWaterAt.and.returnValue(false);
       
-      collisionService.isPassable.and.callFake((fromX: number, fromZ: number, toX: number, toZ: number) => {
+      collisionService.isBuildableLand.and.callFake((fromX: number, fromZ: number, toX: number, toZ: number) => {
         // Make the connection from (5,5) to (6,5) impassable
         return !(fromX === 5 && fromZ === 5 && toX === 6 && toZ === 5);
       });

@@ -47,6 +47,21 @@ class MockCollisionDetectionService {
     // Passable if the height difference is at most 1 unit
     return Math.abs(fromHeight - toHeight) <= 1;
   }
+  
+  isBuildableLand(fromX: number, fromZ: number, toX: number, toZ: number): boolean {
+    // First, explicitly check if the destination tile is water. This is the most important check.
+    if (this.terrainService.isWaterAt(toX, toZ)) {
+      return false;
+    }
+
+    // Then, check if the height difference is acceptable.
+    if (!this.isPassable(fromX, fromZ, toX, toZ)) {
+      return false;
+    }
+
+    // If it's not water and the slope is acceptable, it's buildable land.
+    return true;
+  }
 }
 
 // Example function to demonstrate SiteFinderService usage

@@ -34,6 +34,21 @@ class MockCollisionDetectionService {
     const toHeight = this.terrainService.getHeightAt(toX, toZ);
     return Math.abs(fromHeight - toHeight) <= 1;
   }
+  
+  isBuildableLand(fromX: number, fromZ: number, toX: number, toZ: number): boolean {
+    // First, explicitly check if the destination tile is water. This is the most important check.
+    if (this.terrainService.isWaterAt(toX, toZ)) {
+      return false;
+    }
+
+    // Then, check if the height difference is acceptable.
+    if (!this.isPassable(fromX, fromZ, toX, toZ)) {
+      return false;
+    }
+
+    // If it's not water and the slope is acceptable, it's buildable land.
+    return true;
+  }
 }
 
 // Demo function

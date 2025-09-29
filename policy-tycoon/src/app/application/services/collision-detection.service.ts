@@ -175,6 +175,27 @@ export class CollisionDetectionService {
   }
 
   /**
+   * Checks if a tile is a valid, buildable land tile for the purpose of calculating city area.
+   * A tile is considered valid if it is not water and is within a passable height difference
+   * from the previous tile.
+   * @returns {boolean} True if the tile is a valid land tile for a city.
+   */
+  public isBuildableLand(fromX: number, fromZ: number, toX: number, toZ: number): boolean {
+    // First, explicitly check if the destination tile is water. This is the most important check.
+    if (this.terrainService.isWaterAt(toX, toZ)) {
+      return false;
+    }
+
+    // Then, check if the height difference is acceptable.
+    if (!this.isPassable(fromX, fromZ, toX, toZ)) {
+      return false;
+    }
+
+    // If it's not water and the slope is acceptable, it's buildable land.
+    return true;
+  }
+
+  /**
    * Check if a road segment would overlap with existing roads
    */
   checkRoadOverlap(startX: number, startZ: number, endX: number, endZ: number, roadState: RoadGenerationState): CollisionResult {

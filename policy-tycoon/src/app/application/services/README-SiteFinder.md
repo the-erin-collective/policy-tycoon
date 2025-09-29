@@ -18,8 +18,8 @@ The site finding algorithm works as follows:
 1. **Random Sampling**: Pick random locations within the map bounds that haven't been checked yet
 2. **Area Calculation**: For each location, perform a breadth-first search (BFS) to calculate the connected buildable area
 3. **Validation**: Check that each tile in the area:
-   - Is above the water level
-   - Is passable from adjacent tiles (height difference ≤ 1)
+   - Is above the water level (not water)
+   - Is buildable land (not water and passable from adjacent tiles)
 4. **Filtering**: Only include locations with area size meeting the minimum requirement
 5. **Ranking**: Sort locations by area size (largest first)
 
@@ -34,8 +34,8 @@ The service uses BFS to accurately measure connected buildable areas, ensuring t
 ### Water Detection
 The service integrates with the TerrainGenerationService to properly identify water tiles and exclude them from buildable areas.
 
-### Passability Checking
-Using the CollisionDetectionService, the service ensures that terrain is traversable between adjacent tiles.
+### Buildable Land Checking
+Using the CollisionDetectionService, the service ensures that terrain is traversable between adjacent tiles and that tiles are not water.
 
 ### Duplicate Prevention
 A global tracking system prevents the same tiles from being checked multiple times, improving efficiency.

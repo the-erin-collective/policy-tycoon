@@ -98,8 +98,7 @@ export class SiteFinderService {
         visitedInThisSearch.add(neighborKey); // Mark as visited for this search immediately
 
         // Check validity: not water and passable from the current tile
-        if (!this.terrainService.isWaterAt(neighbor.x, neighbor.z) &&
-            this.collisionService.isPassable(current.x, current.z, neighbor.x, neighbor.z)) {
+        if (this.collisionService.isBuildableLand(current.x, current.z, neighbor.x, neighbor.z)) {
           queue.push(neighbor);
         }
       }
