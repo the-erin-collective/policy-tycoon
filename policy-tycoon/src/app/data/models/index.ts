@@ -77,6 +77,14 @@ export {
 // City-generation types and values are already exported above via:
 // export * from './city-generation'
 
+// Terrain generation models
+export type {
+  TileType,
+  TerrainGenerationConfig,
+  World,
+  WFGridCell
+} from './terrain-models';
+
 export {
   CityTierManager
 } from './city-tier-needs';
@@ -96,3 +104,4 @@ export {
   GameStateManager,
   createInitialGameState
 } from './game-state';
+

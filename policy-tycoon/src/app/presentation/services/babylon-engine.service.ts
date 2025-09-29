@@ -1,177 +1,59 @@
-import { Injectable, ElementRef } from '@angular/core';
-import { 
-  Engine, 
-  Scene, 
-  ArcRotateCamera, 
-  Vector3, 
-  HemisphericLight, 
-  Color3,
-  Color4,
-  Tools,
-  GlowLayer,
-  PostProcess,
-  Effect,
-  Mesh,
-  AbstractMesh
-} from '@babylonjs/core';
+import { ElementRef, Injectable, NgZone } from '@angular/core';
+import * as BABYLON from '@babylonjs/core';
 
-@Injectable({
-  providedIn: 'root'
-})
+@Injectable({ providedIn: 'root' })
 export class BabylonEngineService {
-  private engine: Engine | null = null;
-  private scene: Scene | null = null;
-  private camera: ArcRotateCamera | null = null;
-  private glowLayer: GlowLayer | null = null;
+  private engine!: BABYLON.Engine;
+  private scene!: BABYLON.Scene;
 
-  async initializeEngine(canvas: ElementRef<HTMLCanvasElement>): Promise<void> {
-    if (!canvas.nativeElement) {
-      throw new Error('Canvas element is required');
-    }
+  constructor(private ngZone: NgZone) {}
 
-    // Create the BabylonJS engine with optimized settings
-    this.engine = new Engine(canvas.nativeElement, true, {
-      preserveDrawingBuffer: true,
-      stencil: true,
-      antialias: true,
-      adaptToDeviceRatio: true
-    });
+  public async createScene(canvas: HTMLCanvasElement): Promise<BABYLON.Scene> {
+    this.engine = new BABYLON.Engine(canvas, true);
+    this.scene = new BABYLON.Scene(this.engine);
 
-    // Create the scene with optimized settings
-    this.scene = new Scene(this.engine);
-    this.scene.clearColor = new Color4(0.83, 0.92, 1.0, 1.0); // Sky blue background
-    
-    // Enable performance optimizations
-    this.scene.skipFrustumClipping = false; // Enable frustum culling
-    this.scene.blockMaterialDirtyMechanism = false; // Allow material updates but optimize them
+    // --- PERFORMANCE OPTIMIZATIONS ---
+    // This global setting stops the engine from checking every material for changes on every frame.
+    // For a static scene like ours, this provides a significant performance boost.
+    this.scene.blockMaterialDirtyMechanism = true;
 
-    // Create arc rotate camera for better game view control
-    this.camera = new ArcRotateCamera(
-      'gameCamera',
-      Tools.ToRadians(45),  // Alpha (horizontal rotation)
-      Tools.ToRadians(60),  // Beta (vertical rotation) 
-      40,                   // Radius (distance from target)
-      Vector3.Zero(),       // Target position
-      this.scene
-    );
+    this.scene.clearColor = new BABYLON.Color4(0.5, 0.7, 1.0, 1);
 
-    // Configure camera controls
-    this.camera.attachControl(canvas.nativeElement, true);
-    this.camera.setTarget(Vector3.Zero());
-    
-    // Set camera limits for better UX
-    this.camera.lowerBetaLimit = Tools.ToRadians(10);  // Don't go too low
-    this.camera.upperBetaLimit = Tools.ToRadians(80);  // Don't go too high
-    this.camera.lowerRadiusLimit = 10;                 // Minimum zoom
-    this.camera.upperRadiusLimit = 100;                // Maximum zoom
+    // --- SCENE SETUP (Camera, Lights) ---
+    const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI / 2, Math.PI / 3, 45, BABYLON.Vector3.Zero(), this.scene);
+    camera.attachControl(canvas, true);
+    camera.lowerRadiusLimit = 15;
+    camera.upperRadiusLimit = 400;
+    camera.wheelDeltaPercentage = 0.01;
 
-    // Create optimized lighting setup
-    const hemisphericLight = new HemisphericLight('skyLight', new Vector3(0.3, 1, 0.3), this.scene);
-    hemisphericLight.intensity = 0.9;
-    hemisphericLight.diffuse = new Color3(1, 1, 0.9); // Slightly warm light
-    hemisphericLight.specular = new Color3(0.1, 0.1, 0.1); // Minimal specular
+    // PERFORMANCE: Using only a HemisphericLight is vastly more performant than a DirectionalLight that casts shadows.
+    // Real-time shadow calculation is one of the most GPU-intensive tasks. By using a hemispheric light,
+    // we get good, soft ambient lighting without any shadow calculations, which dramatically improves the frame rate.
+    const hemiLight = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0.1, 1, 0.2), this.scene);
+    hemiLight.diffuse = new BABYLON.Color3(1, 1, 1); // Light from the sky
+    hemiLight.groundColor = new BABYLON.Color3(0.5, 0.45, 0.4); // Light bouncing from the ground
+    hemiLight.intensity = 1.2;
 
-    // Initialize glow layer for visual effects (optimized)
-    this.glowLayer = new GlowLayer('glow', this.scene, {
-      mainTextureFixedSize: 256, // Smaller texture for better performance
-      blurKernelSize: 16
-    });
-    this.glowLayer.intensity = 0.5;
-
-    // Start the render loop
-    this.engine.runRenderLoop(() => {
-      if (this.scene) {
-        this.scene.render();
-      }
-    });
-
-    // Handle window resize
-    window.addEventListener('resize', () => {
-      if (this.engine) {
-        this.engine.resize();
-      }
-    });
-  }
-
-  getScene(): Scene | null {
+    this.startRenderLoop();
     return this.scene;
   }
 
-  getEngine(): Engine | null {
-    return this.engine;
-  }
-
-  getCamera(): ArcRotateCamera | null {
-    return this.camera;
-  }
-
-  getGlowLayer(): GlowLayer | null {
-    return this.glowLayer;
-  }
-
-  // Performance optimization methods
-  enablePerformanceOptimizations(): void {
-    if (!this.scene) return;
-
-    // Freeze static meshes for better performance
-    this.scene.meshes
-      .filter((mesh): mesh is Mesh => mesh instanceof Mesh && mesh.metadata?.isStatic === true)
-      .forEach(mesh => {
-        mesh.freezeWorldMatrix();
-        if (mesh.material) {
-          mesh.material.freeze();
-        }
+  private startRenderLoop(): void {
+    // Using ngZone.runOutsideAngular is crucial for performance in Angular applications with Babylon.js.
+    // It prevents Babylon's render loop from triggering Angular's change detection on every single frame,
+    // which would otherwise cause significant performance degradation.
+    this.ngZone.runOutsideAngular(() => {
+      this.engine.runRenderLoop(() => {
+        this.scene.render();
       });
+    });
 
-    // Optimize glow layer to only include specific meshes
-    if (this.glowLayer) {
-      // Clear all meshes from glow layer first
-      this.scene.meshes
-        .filter((mesh): mesh is Mesh => mesh instanceof Mesh)
-        .forEach(mesh => {
-          this.glowLayer?.removeIncludedOnlyMesh(mesh);
-        });
-      
-      // Only add meshes that should glow (like city need icons, special effects)
-      this.scene.meshes
-        .filter((mesh): mesh is Mesh => mesh instanceof Mesh && mesh.metadata?.shouldGlow === true)
-        .forEach(mesh => {
-          this.glowLayer?.addIncludedOnlyMesh(mesh);
-        });
-    }
+    window.addEventListener('resize', () => {
+        this.engine.resize();
+    });
   }
 
-  // Camera control methods for game interaction
-  focusOnPosition(position: Vector3, distance: number = 30): void {
-    if (!this.camera) return;
-    
-    this.camera.setTarget(position);
-    this.camera.radius = distance;
-  }
-
-  setCameraLimits(minRadius: number, maxRadius: number): void {
-    if (!this.camera) return;
-    
-    this.camera.lowerRadiusLimit = minRadius;
-    this.camera.upperRadiusLimit = maxRadius;
-  }
-
-  dispose(): void {
-    if (this.glowLayer) {
-      this.glowLayer.dispose();
-      this.glowLayer = null;
-    }
-
-    if (this.scene) {
-      this.scene.dispose();
-      this.scene = null;
-    }
-    
-    if (this.engine) {
-      this.engine.dispose();
-      this.engine = null;
-    }
-    
-    this.camera = null;
+  public getScene(): BABYLON.Scene | undefined {
+    return this.scene;
   }
 }
