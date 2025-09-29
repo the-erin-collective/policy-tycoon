@@ -20,6 +20,7 @@ import { TerrainGenerationService } from '../../application/services/terrain-gen
 import { PerformanceConfigService } from '../../application/services/performance-config.service';
 import { City } from '../../data/models/core-entities';
 import { CityTier } from '../../data/models/enums';
+import { SiteFinderService } from '../../application/services/site-finder.service';
 
 describe('Final Integration - Complete OpenTTD-Style City Generation System', () => {
   let cityGenerator: CityGeneratorService;
@@ -30,21 +31,23 @@ describe('Final Integration - Complete OpenTTD-Style City Generation System', ()
   let engine: Engine;
 
   beforeEach(() => {
-    // Create services
-    const collisionDetection = new CollisionDetectionService();
-    const cityConfiguration = new CityConfigurationService();
+    // Create mock services for integration testing
     const logger = new GenerationLoggerService();
     const terrainGeneration = new TerrainGenerationService(logger);
+    const collisionDetection = new CollisionDetectionService(terrainGeneration);
+    const cityConfiguration = new CityConfigurationService();
     const roadNetworkBuilder = new RecursiveRoadBuilderService(collisionDetection, logger, terrainGeneration);
     const buildingPlacer = new BuildingPlacerService(collisionDetection, cityConfiguration, logger, terrainGeneration);
     const cityNameGenerator = new CityNameGeneratorService();
+    const siteFinder = new SiteFinderService(terrainGeneration, collisionDetection);
     const classicCityGenerator = new ClassicCityGeneratorService(
       roadNetworkBuilder,
       buildingPlacer,
       cityNameGenerator,
       cityConfiguration,
       logger,
-      terrainGeneration
+      terrainGeneration,
+      siteFinder
     );
     
     cityGenerator = new CityGeneratorService(classicCityGenerator, terrainGeneration, collisionDetection);

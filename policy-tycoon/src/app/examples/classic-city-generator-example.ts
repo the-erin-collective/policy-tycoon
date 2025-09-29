@@ -85,11 +85,13 @@ export async function demonstrateClassicCityGenerator(): Promise<void> {
   // NEW: Demonstrate intelligent city generation with site finding
   console.log('\n--- Generating Cities with Site Finding ---');
   console.log('This method automatically finds suitable locations for cities:');
-  const foundCities = await cityGenerator.generateCities(3, 25); // Find 3 cities with minimum 25 buildable tiles
-  console.log(`Found and generated ${foundCities.length} cities using site finding`);
-  foundCities.forEach((city, index) => {
-    console.log(`  City ${index + 1}: ${city.name} at (${city.centerX}, ${city.centerZ}) with population ${city.population}`);
-  });
+  const foundCities = await cityGenerator.generateCities(3, 25).toPromise(); // Find 3 cities with minimum 25 buildable tiles
+  if (foundCities) {
+    console.log(`Found and generated ${foundCities.length} cities using site finding`);
+    foundCities.forEach((city: any, index: number) => {
+      console.log(`  City ${index + 1}: ${city.name} at (${city.centerX}, ${city.centerZ}) with population ${city.population}`);
+    });
+  }
 
   // Show generation statistics
   console.log('\n--- Generation Statistics ---');

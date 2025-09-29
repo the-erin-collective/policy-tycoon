@@ -14,6 +14,7 @@ import { EnvironmentalFeatureService } from '../../application/services/environm
 import { PerformanceConfigService } from '../../application/services/performance-config.service';
 import { PerformanceMonitorService } from '../../application/services/performance-monitor.service';
 import { TerrainGenerationService } from '../../application/services/terrain-generation.service';
+import { SiteFinderService } from '../../application/services/site-finder.service';
 import { Scene, Engine, NullEngine } from '@babylonjs/core';
 
 describe('MapRendererService - Performance', () => {
@@ -29,32 +30,35 @@ describe('MapRendererService - Performance', () => {
     scene = new Scene(engine);
     
     // Create services directly for zoneless mode
+    const logger = new GenerationLoggerService();
     const modelFactory = new ModelFactoryService();
-    const terrainGenerationService = new TerrainGenerationService(new GenerationLoggerService());
-    const sharedCollision = new CollisionDetectionService();
+    const terrainGenerationService = new TerrainGenerationService(logger);
+    const sharedCollision = new CollisionDetectionService(terrainGenerationService);
+    const siteFinder = new SiteFinderService(terrainGenerationService, sharedCollision);
     const cityGenerator = new CityGeneratorService(
       new ClassicCityGeneratorService(
         new RecursiveRoadBuilderService(
           sharedCollision,
-          new GenerationLoggerService(),
+          logger,
           terrainGenerationService
         ),
         new BuildingPlacerService(
           sharedCollision,
           new CityConfigurationService(),
-          new GenerationLoggerService(),
+          logger,
           terrainGenerationService
         ),
         new CityNameGeneratorService(),
         new CityConfigurationService(),
-        new GenerationLoggerService(),
-        terrainGenerationService
+        logger,
+        terrainGenerationService,
+        siteFinder
       ),
       terrainGenerationService,
       sharedCollision
     );
     const gridVisualizer = new GridVisualizerService();
-    const environmentalFeatureService = new EnvironmentalFeatureService(modelFactory, new GenerationLoggerService());
+    const environmentalFeatureService = new EnvironmentalFeatureService(modelFactory, logger);
 
     performanceConfig = new PerformanceConfigService();
     // Use low quality settings to keep tests lightweight

@@ -69,14 +69,16 @@ async function debugConversion() {
   
   // NEW: Generate cities using site finding to find valid locations
   console.log('\n--- NEW APPROACH: Generate cities using site finding ---');
-  const foundCities = await classicCityGenerator.generateCities(1, 25); // Find 1 city with minimum 25 buildable tiles
+  const foundCities = await classicCityGenerator.generateCities(1, 25).toPromise(); // Find 1 city with minimum 25 buildable tiles
   
-  console.log(`Found and generated ${foundCities.length} cities using site finding`);
-  foundCities.forEach((city, index) => {
-    console.log(`  City ${index + 1}: ${city.name} at (${city.centerX}, ${city.centerZ}) with population ${city.population}`);
-    console.log(`    Roads: ${city.roads.length} segments`);
-    console.log(`    Buildings: ${city.buildings.length}`);
-  });
+  if (foundCities) {
+    console.log(`Found and generated ${foundCities.length} cities using site finding`);
+    foundCities.forEach((city: any, index: number) => {
+      console.log(`  City ${index + 1}: ${city.name} at (${city.centerX}, ${city.centerZ}) with population ${city.population}`);
+      console.log(`    Roads: ${city.roads.length} segments`);
+      console.log(`    Buildings: ${city.buildings.length}`);
+    });
+  }
   
   // Clean up
   scene.dispose();

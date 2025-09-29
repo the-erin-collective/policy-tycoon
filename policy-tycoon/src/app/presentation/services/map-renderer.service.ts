@@ -128,10 +128,10 @@ export class MapRendererService {
    * Generate and render terrain using Wave Function Collapse algorithm with instancing and chunking
    * This implements the terrain generation from the demo HTML file with chunking optimization
    */
-  generateAndRenderTerrain(): void {
+  async generateAndRenderTerrain(): Promise<void> {
     if (!this.scene) {
       console.warn('Scene not initialized, cannot generate terrain');
-      return;
+      return Promise.resolve();
     }
 
     // Dispose of existing terrain instances
@@ -165,6 +165,7 @@ export class MapRendererService {
     this.generateEnvironmentalFeatures(undefined, terrainConfig);
     
     console.log('Terrain generation with chunking and instancing complete');
+    return Promise.resolve();
   }
 
   private createInitialRoadNetwork(): void {

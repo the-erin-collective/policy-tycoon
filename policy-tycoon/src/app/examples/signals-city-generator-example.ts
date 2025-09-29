@@ -16,8 +16,9 @@ import { SiteFinderService } from '../application/services/site-finder.service';
 import { CitySize } from '../data/models/city-generation';
 import { Scene, Engine, NullEngine } from '@babylonjs/core';
 
-export function demonstrateSignalsWithCityGenerator(): void {
+async function demonstrateSignalsWithCityGenerator() {
   console.log('=== Signals-Based City Generator Example ===');
+  console.log('Demonstrating reactive state management with Angular signals (zoneless mode)\n');
 
   // Create dependencies
   const logger = new GenerationLoggerService();
@@ -119,6 +120,15 @@ export function demonstrateSignalsWithCityGenerator(): void {
   const city3 = cityGenerator.generateCity(200, 200, CitySize.Large, existingNames, 98765);
   existingNames.add(city3.name);
 
+  console.log('\n--- NEW APPROACH: Generate cities using site finding ---');
+  const foundCities = await cityGenerator.generateCities(3, 25).toPromise(); // Find 3 cities with minimum 25 buildable tiles
+  if (foundCities) {
+    console.log(`Found and generated ${foundCities.length} cities using site finding`);
+    foundCities.forEach((city: any, index: number) => {
+      console.log(`  City ${index + 1}: ${city.name} at (${city.centerX}, ${city.centerZ}) with population ${city.population}`);
+    });
+  }
+
   // Demonstrate city filtering by size
   console.log('\n--- Demonstrating computed signals for filtering ---');
   
@@ -175,5 +185,5 @@ export function demonstrateSignalsWithCityGenerator(): void {
 
 // Run the example if this file is executed directly
 if (typeof window === 'undefined') {
-  demonstrateSignalsWithCityGenerator();
+  demonstrateSignalsWithCityGenerator().catch(console.error);
 }

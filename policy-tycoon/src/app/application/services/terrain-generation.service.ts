@@ -1,6 +1,7 @@
 import { Injectable, WritableSignal, signal, Inject, Optional } from '@angular/core';
 import * as BABYLON from '@babylonjs/core';
 import { TileType, type TerrainGenerationConfig, type World, type WFGridCell } from '../../data/models';
+import { Observable } from 'rxjs';
 
 // Define the SlopeObject interface
 export interface SlopeObject {
@@ -95,7 +96,21 @@ export class TerrainGenerationService {
     return null;
   }
 
-  public async generateWorld(config: TerrainGenerationConfig): Promise<void> {
+  public generateWorld(config: TerrainGenerationConfig): Observable<void> {
+    // Wrap the existing async function in an Observable
+    return new Observable(observer => {
+      this.generateWorldAsync(config)
+        .then(() => {
+          observer.next();
+          observer.complete();
+        })
+        .catch(error => {
+          observer.error(error);
+        });
+    });
+  }
+
+  private async generateWorldAsync(config: TerrainGenerationConfig): Promise<void> {
     if (this.isGenerating) return;
     this.isGenerating = true;
     this.isGeneratingSignal.set(true);

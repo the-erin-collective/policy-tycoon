@@ -15,6 +15,7 @@ import { CollisionDetectionService } from '../../application/services/collision-
 import { GenerationLoggerService } from '../../application/services/generation-logger.service';
 import { CityTier } from '../../data/models/enums';
 import { City } from '../../data/models/core-entities';
+import { SiteFinderService } from '../../application/services/site-finder.service';
 import { TerrainGenerationService } from '../../application/services/terrain-generation.service';
 
 describe('ClassicCityGenerator Integration Verification', () => {
@@ -22,20 +23,22 @@ describe('ClassicCityGenerator Integration Verification', () => {
   
   beforeEach(() => {
     // Create services
-    const collisionDetection = new CollisionDetectionService();
-    const cityConfiguration = new CityConfigurationService();
     const logger = new GenerationLoggerService();
     const terrainGeneration = new TerrainGenerationService(logger);
+    const collisionDetection = new CollisionDetectionService(terrainGeneration);
+    const cityConfiguration = new CityConfigurationService();
     const roadNetworkBuilder = new RecursiveRoadBuilderService(collisionDetection, logger, terrainGeneration);
     const buildingPlacer = new BuildingPlacerService(collisionDetection, cityConfiguration, logger, terrainGeneration);
     const cityNameGenerator = new CityNameGeneratorService();
+    const siteFinder = new SiteFinderService(terrainGeneration, collisionDetection);
     const classicCityGenerator = new ClassicCityGeneratorService(
       roadNetworkBuilder,
       buildingPlacer,
       cityNameGenerator,
       cityConfiguration,
       logger,
-      terrainGeneration
+      terrainGeneration,
+      siteFinder
     );
     
     cityGenerator = new CityGeneratorService(classicCityGenerator, terrainGeneration, collisionDetection);

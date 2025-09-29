@@ -16,26 +16,29 @@ import { GenerationLoggerService } from '../../application/services/generation-l
 import { City, CityTier } from '../../data/models/core-entities';
 import { Vector3 } from '@babylonjs/core';
 import { TerrainGenerationService } from '../../application/services/terrain-generation.service';
+import { SiteFinderService } from '../../application/services/site-finder.service';
 
 describe('CityGeneratorService - Visual Validation', () => {
   let cityGenerator: CityGeneratorService;
   
   beforeEach(() => {
     // Create services
-    const collisionDetection = new CollisionDetectionService();
-    const cityConfiguration = new CityConfigurationService();
     const logger = new GenerationLoggerService();
     const terrainGenerationService = new TerrainGenerationService(logger);
+    const collisionDetection = new CollisionDetectionService(terrainGenerationService);
+    const cityConfiguration = new CityConfigurationService();
     const roadNetworkBuilder = new RecursiveRoadBuilderService(collisionDetection, logger, terrainGenerationService);
     const buildingPlacer = new BuildingPlacerService(collisionDetection, cityConfiguration, logger, terrainGenerationService);
     const cityNameGenerator = new CityNameGeneratorService();
+    const siteFinder = new SiteFinderService(terrainGenerationService, collisionDetection);
     const classicCityGenerator = new ClassicCityGeneratorService(
       roadNetworkBuilder,
       buildingPlacer,
       cityNameGenerator,
       cityConfiguration,
       logger,
-      terrainGenerationService
+      terrainGenerationService,
+      siteFinder
     );
     
     cityGenerator = new CityGeneratorService(classicCityGenerator, terrainGenerationService, collisionDetection);

@@ -44,37 +44,39 @@ export class GameSceneComponent implements OnInit, OnDestroy {
         await this.terrainGenerationService.generateWorld(config);
         
         // Generate cities using the site finder to find valid locations
-        const cities = await this.cityGenerator.generateCities(1);
+        const cities = await this.cityGenerator.generateCities(1).toPromise();
         
         // Render each generated city
-        cities.forEach((generatedCity, index) => {
-          // Create a City entity from the GeneratedCity
-          const city: City = {
-            id: generatedCity.id,
-            name: generatedCity.name,
-            position: new Vector3(generatedCity.centerX, this.terrainGenerationService.getHeightAtCoordinates(generatedCity.centerX, generatedCity.centerZ), generatedCity.centerZ),
-            population: generatedCity.population,
-            tier: this.getCityTierFromPopulation(generatedCity.population), // Set tier based on population
-            currentNeeds: [],
-            unmetNeeds: [],
-            needSatisfactionHistory: [],
-            ideology: {
-              progressive: 50,
-              conservative: 50,
-              driftRate: 0,
-              lastUpdated: new Date()
-            },
-            approvalRating: 50,
-            costOfLiving: 100,
-            averageWage: 50000,
-            unemployment: 5,
-            connectedTransport: [],
-            availableServices: []
-          };
-          
-          // Render the city
-          this.mapRenderer.renderCity(city);
-        });
+        if (cities) {
+          cities.forEach((generatedCity: any, index: number) => {
+            // Create a City entity from the GeneratedCity
+            const city: City = {
+              id: generatedCity.id,
+              name: generatedCity.name,
+              position: new Vector3(generatedCity.centerX, this.terrainGenerationService.getHeightAtCoordinates(generatedCity.centerX, generatedCity.centerZ), generatedCity.centerZ),
+              population: generatedCity.population,
+              tier: this.getCityTierFromPopulation(generatedCity.population), // Set tier based on population
+              currentNeeds: [],
+              unmetNeeds: [],
+              needSatisfactionHistory: [],
+              ideology: {
+                progressive: 50,
+                conservative: 50,
+                driftRate: 0,
+                lastUpdated: new Date()
+              },
+              approvalRating: 50,
+              costOfLiving: 100,
+              averageWage: 50000,
+              unemployment: 5,
+              connectedTransport: [],
+              availableServices: []
+            };
+            
+            // Render the city
+            this.mapRenderer.renderCity(city);
+          });
+        }
     });
   }
 

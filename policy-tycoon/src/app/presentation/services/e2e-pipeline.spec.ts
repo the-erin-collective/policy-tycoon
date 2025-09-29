@@ -19,6 +19,7 @@ import { EnvironmentalFeatureService } from '../../application/services/environm
 import { TerrainGenerationService } from '../../application/services/terrain-generation.service';
 import { City, CityTier } from '../../data/models/core-entities';
 import { PerformanceConfigService } from '../../application/services/performance-config.service';
+import { SiteFinderService } from '../../application/services/site-finder.service';
 
 describe('End-to-End City Generation and Rendering Pipeline', () => {
   let cityGenerator: CityGeneratorService;
@@ -30,20 +31,22 @@ describe('End-to-End City Generation and Rendering Pipeline', () => {
 
   beforeEach(() => {
     // Create services
-    const collisionDetection = new CollisionDetectionService();
     const cityConfiguration = new CityConfigurationService();
     const logger = new GenerationLoggerService();
     const terrainGeneration = new TerrainGenerationService(logger);
+    const collisionDetection = new CollisionDetectionService(terrainGeneration);
     const roadNetworkBuilder = new RecursiveRoadBuilderService(collisionDetection, logger, terrainGeneration);
     const buildingPlacer = new BuildingPlacerService(collisionDetection, cityConfiguration, logger, terrainGeneration);
     const cityNameGenerator = new CityNameGeneratorService();
+    const siteFinder = new SiteFinderService(terrainGeneration, collisionDetection);
     const classicCityGenerator = new ClassicCityGeneratorService(
       roadNetworkBuilder,
       buildingPlacer,
       cityNameGenerator,
       cityConfiguration,
       logger,
-      terrainGeneration
+      terrainGeneration,
+      siteFinder
     );
     
     cityGenerator = new CityGeneratorService(classicCityGenerator, terrainGeneration, collisionDetection);

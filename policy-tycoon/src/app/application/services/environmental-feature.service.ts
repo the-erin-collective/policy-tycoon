@@ -57,7 +57,7 @@ export class EnvironmentalFeatureService {
     terrainConfig?: any,
     cityCount?: number // Add city count parameter
   ): Tree[] {
-    this.logger.info(`Generating ${treeCount} trees across map of size ${mapWidth}x${mapHeight}`);
+    this.logger.info(`Generating trees across map of size ${mapWidth}x${mapHeight}`);
     
     const trees: Tree[] = [];
     
