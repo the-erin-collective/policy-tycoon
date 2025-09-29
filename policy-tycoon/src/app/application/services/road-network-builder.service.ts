@@ -179,6 +179,25 @@ export class RoadNetworkBuilderService implements IRoadNetworkBuilder {
       const roadZ = startZ + (deltaZ * i);
       
       try {
+        // **FIX: Check if the terrain tile is Land before placing a road**
+        // Check if the next position is within bounds
+        if (
+          roadX >= this.getMapBounds().minX &&
+          roadX <= this.getMapBounds().maxX &&
+          roadZ >= this.getMapBounds().minZ &&
+          roadZ <= this.getMapBounds().maxZ
+        ) {
+          // Check if the terrain tile is Land
+          const isWater = this.terrainGeneration.isWaterAt(roadX, roadZ);
+          if (isWater) {
+            this.logger.warn(`Cannot place road at (${roadX},${roadZ}) due to water`);
+            break; // Stop extending this arm if it's on water
+          }
+        } else {
+          this.logger.warn(`Cannot place road at (${roadX},${roadZ}) due to out of bounds`);
+          break; // Stop extending if out of bounds
+        }
+
         // Check for collision before placing road tile
         const collisionResult = this.collisionDetection.canPlaceRoad(roadX, roadZ, state);
         if (collisionResult.hasCollision) {
@@ -292,6 +311,25 @@ export class RoadNetworkBuilderService implements IRoadNetworkBuilder {
     for (let i = 1; i <= maxLength; i++) {
       const newX = deadEnd.x + (deltaX * i);
       const newZ = deadEnd.z + (deltaZ * i);
+      
+      // **FIX: Check if the terrain tile is Land before placing a road**
+      // Check if the next position is within bounds
+      if (
+        newX >= this.getMapBounds().minX &&
+        newX <= this.getMapBounds().maxX &&
+        newZ >= this.getMapBounds().minZ &&
+        newZ <= this.getMapBounds().maxZ
+      ) {
+        // Check if the terrain tile is Land
+        const isWater = this.terrainGeneration.isWaterAt(newX, newZ);
+        if (isWater) {
+          this.logger.warn(`Cannot place road at (${newX},${newZ}) due to water`);
+          break; // Stop extending if it's on water
+        }
+      } else {
+        this.logger.warn(`Cannot place road at (${newX},${newZ}) due to out of bounds`);
+        break; // Stop extending if out of bounds
+      }
       
       // Check for collision before placing road tile
       const collisionResult = this.collisionDetection.canPlaceRoad(newX, newZ, state);
@@ -551,6 +589,24 @@ export class RoadNetworkBuilderService implements IRoadNetworkBuilder {
   ): Point[] {
     // Simple implementation - create a single segment in the perpendicular direction
     const newPoint = this.getNextPoint(point, perpendicularDirection);
+    
+    // **FIX: Check if the terrain tile is Land before placing a road**
+    // Check if the next position is within bounds
+    if (
+      newPoint.x >= this.getMapBounds().minX &&
+      newPoint.x <= this.getMapBounds().maxX &&
+      newPoint.z >= this.getMapBounds().minZ &&
+      newPoint.z <= this.getMapBounds().maxZ
+    ) {
+      // Check if the terrain tile is Land
+      const isWater = this.terrainGeneration.isWaterAt(newPoint.x, newPoint.z);
+      if (isWater) {
+        return []; // Return empty array if it's on water
+      }
+    } else {
+      return []; // Return empty array if out of bounds
+    }
+    
     if (this.isValidRoadPosition(newPoint, state)) {
       this.addRoadSegment(point, newPoint, state);
       return [newPoint];
@@ -697,6 +753,24 @@ export class RoadNetworkBuilderService implements IRoadNetworkBuilder {
   ): Point[] {
     // Simple implementation - create a single diagonal segment
     const newPoint = this.getNextPoint(point, mainDirection);
+    
+    // **FIX: Check if the terrain tile is Land before placing a road**
+    // Check if the next position is within bounds
+    if (
+      newPoint.x >= this.getMapBounds().minX &&
+      newPoint.x <= this.getMapBounds().maxX &&
+      newPoint.z >= this.getMapBounds().minZ &&
+      newPoint.z <= this.getMapBounds().maxZ
+    ) {
+      // Check if the terrain tile is Land
+      const isWater = this.terrainGeneration.isWaterAt(newPoint.x, newPoint.z);
+      if (isWater) {
+        return []; // Return empty array if it's on water
+      }
+    } else {
+      return []; // Return empty array if out of bounds
+    }
+    
     if (this.isValidRoadPosition(newPoint, state)) {
       this.addRoadSegment(point, newPoint, state);
       return [newPoint];
@@ -830,6 +904,23 @@ export class RoadNetworkBuilderService implements IRoadNetworkBuilder {
 
       for (let i = 0; i < length; i++) {
         const nextPoint = this.getNextPoint(current, direction);
+        
+        // **FIX: Check if the terrain tile is Land before placing a road**
+        // Check if the next position is within bounds
+        if (
+          nextPoint.x >= this.getMapBounds().minX &&
+          nextPoint.x <= this.getMapBounds().maxX &&
+          nextPoint.z >= this.getMapBounds().minZ &&
+          nextPoint.z <= this.getMapBounds().maxZ
+        ) {
+          // Check if the terrain tile is Land
+          const isWater = this.terrainGeneration.isWaterAt(nextPoint.x, nextPoint.z);
+          if (isWater) {
+            break; // Stop extending the road if it's on water
+          }
+        } else {
+          break; // Stop if out of bounds
+        }
         
         // Check if the next point is valid and not already a road
         if (this.isValidRoadPosition(nextPoint, state)) {
