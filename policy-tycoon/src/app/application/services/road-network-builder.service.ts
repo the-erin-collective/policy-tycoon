@@ -182,25 +182,25 @@ export class RoadNetworkBuilderService implements IRoadNetworkBuilder {
         // Check for collision before placing road tile
         const collisionResult = this.collisionDetection.canPlaceRoad(roadX, roadZ, state);
         if (collisionResult.hasCollision) {
-          // NEW: Special handling for slopes
-          if (collisionResult.collisionType === 'terrain') {
-            // Check if it's a slope - roads can be placed on slopes now
-            const terrain = (this.collisionDetection as any).getTerrainAt(roadX, roadZ);
-            if (terrain.isSlope) {
-              // Allow placement on slopes - will create a full ramp
-              this.logger.info(`Allowing road placement on slope at (${roadX},${roadZ})`);
-            } else {
-              // Requirement 10.1 - Comprehensive error handling for terrain collision during road generation
-              this.logger.warn(`Collision detected at (${roadX},${roadZ}) during road arm creation: ${collisionResult.collisionType} - ${collisionResult.message || 'No details'}`);
-              
-              // Stop extending this arm if collision detected
-              break;
-            }
-          } else {
-            // Requirement 10.1 - Comprehensive error handling for terrain collision during road generation
-            this.logger.warn(`Collision detected at (${roadX},${roadZ}) during road arm creation: ${collisionResult.collisionType} - ${collisionResult.message || 'No details'}`);
-            
-            // Stop extending this arm if collision detected
+          // Requirement 10.1 - Comprehensive error handling for terrain collision during road generation
+          this.logger.warn(`Collision detected at (${roadX},${roadZ}) during road arm creation: ${collisionResult.collisionType} - ${collisionResult.message || 'No details'}`);
+          
+          // Stop extending this arm if collision detected
+          break;
+        }
+
+        // NEW: Check passability between previous tile and current tile
+        if (i > 1) {
+          const prevX = startX + (deltaX * (i - 1));
+          const prevZ = startZ + (deltaZ * (i - 1));
+          if (!this.collisionDetection.isPassable(prevX, prevZ, roadX, roadZ)) {
+            this.logger.warn(`Cannot place road at (${roadX},${roadZ}) due to impassable height difference from (${prevX},${prevZ})`);
+            break;
+          }
+        } else {
+          // For the first tile, check passability from the center
+          if (!this.collisionDetection.isPassable(startX, startZ, roadX, roadZ)) {
+            this.logger.warn(`Cannot place road at (${roadX},${roadZ}) due to impassable height difference from center (${startX},${startZ})`);
             break;
           }
         }
@@ -262,39 +262,50 @@ export class RoadNetworkBuilderService implements IRoadNetworkBuilder {
 
     // Extend each initial dead end with random length
     initialDeadEnds.forEach(deadEnd => {
-      this.extendRoadArmFromDeadEnd(deadEnd, centerX, centerZ, state, rng);
+      // Determine the direction from center to this dead end
+      const direction = this.getDirectionFromCenter(deadEnd, centerX, centerZ);
+      // Generate a random length between 3 and 6 tiles
+      const maxLength = rng.nextIntInclusive(3, 6);
+      this.extendRoadArmFromDeadEnd(deadEnd, direction, maxLength, state, rng);
     });
     
     this.logger.info(`Extended road arms, now have ${state.deadEnds.length} dead ends`);
   }
 
   /**
-   * Extend a road arm from a dead end with random length between 2-5 tiles
+   * Extend a road arm from a dead end
+   * Requirements: 1.2, 10.1
    */
   private extendRoadArmFromDeadEnd(
     deadEnd: Point, 
-    centerX: number, 
-    centerZ: number, 
+    direction: Direction, 
+    maxLength: number, 
     state: RoadGenerationState, 
     rng: SeededRandom
   ): void {
-    // Determine direction from center to dead end
-    const direction = this.getDirectionFromCenter(deadEnd, centerX, centerZ);
     const { deltaX, deltaZ } = this.getDirectionDeltas(direction);
     
-    // Generate random extension length between 2-5 tiles
-    const extensionLength = rng.nextIntInclusive(2, 5);
+    this.logger.info(`Extending road arm from dead end (${deadEnd.x},${deadEnd.z}) in direction ${direction} for up to ${maxLength} tiles`);
     
-    // Extend the road arm
     let actualLength = 0;
-    for (let i = 1; i <= extensionLength; i++) {
+    
+    for (let i = 1; i <= maxLength; i++) {
       const newX = deadEnd.x + (deltaX * i);
       const newZ = deadEnd.z + (deltaZ * i);
       
       // Check for collision before placing road tile
       const collisionResult = this.collisionDetection.canPlaceRoad(newX, newZ, state);
       if (collisionResult.hasCollision) {
-        // Stop extending this arm if collision detected
+        // Requirement 10.1 - Comprehensive error handling for terrain collision during road generation
+        this.logger.warn(`Collision detected at (${newX},${newZ}) during road extension: ${collisionResult.collisionType} - ${collisionResult.message || 'No details'}`);
+        break;
+      }
+
+      // NEW: Check passability between previous tile and current tile
+      const prevX = deadEnd.x + (deltaX * (i - 1));
+      const prevZ = deadEnd.z + (deltaZ * (i - 1));
+      if (!this.collisionDetection.isPassable(prevX, prevZ, newX, newZ)) {
+        this.logger.warn(`Cannot place road at (${newX},${newZ}) due to impassable height difference from (${prevX},${prevZ})`);
         break;
       }
 

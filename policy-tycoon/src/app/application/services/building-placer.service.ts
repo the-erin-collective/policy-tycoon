@@ -700,18 +700,18 @@ export class BuildingPlacerService implements BuildingPlacer {
     }
     
     // Prefer spots with 1-3 adjacent roads for more natural city block formation
-    if (adjacentRoads > 3) {
+   // if (adjacentRoads > 3) {
       // Allow high adjacency only in certain cases (e.g., central areas)
-      const isCentralArea = this.isInCentralArea(spot, roadState);
-      if (!isCentralArea) {
-        return false; // Too many adjacent roads for non-central areas
-      }
-    }
+   //   const isCentralArea = this.isInCentralArea(spot, roadState);
+   //   if (!isCentralArea) {
+    //    return false; // Too many adjacent roads for non-central areas
+    //  }
+   // }
 
     // NEW: Check for building clustering to maintain organized blocks
-    if (!this.isInOrganizedBlock(spot, placementState, roadState)) {
-      return false;
-    }
+    //if (!this.isInOrganizedBlock(spot, placementState, roadState)) {
+    //  return false;
+   // }
 
     return true;
   }
@@ -867,32 +867,36 @@ export class BuildingPlacerService implements BuildingPlacer {
             checkSpot.z < mapBounds.minZ || checkSpot.z > mapBounds.maxZ) {
           return false;
         }
-        
-        // Check terrain suitability
-        const buildingMap = placementState.placedBuildings;
-        const collisionResult = this.collisionDetection.canPlaceBuilding(
-          checkSpot.x, checkSpot.z, roadState, buildingMap
-        );
-        
-        // NEW: Special handling for slopes
-        if (collisionResult.hasCollision && collisionResult.collisionType === 'terrain') {
-          // Check if it's a slope - buildings can be placed on slopes now
-          // Use the public canPlaceBuilding method which already handles slope detection
-          // If the collision is just due to slope, we can allow it
-          this.logger.info(`Allowing building placement on slope at (${checkSpot.x},${checkSpot.z})`);
-        } else if (collisionResult.hasCollision) {
-          return false;
-        }
-        
-        // Check if adjacent to road (at least one tile of the building should be adjacent to road)
-        if (dx === 0 && dz === 0) { // Only check for the first tile to avoid over-constraining
-          if (!this.collisionDetection.isAdjacentToRoad(checkSpot.x, checkSpot.z, roadState)) {
-            return false;
-          }
-        }
       }
     }
     
+    // NEW: Validate the entire building footprint for terrain suitability
+    const buildingMap = placementState.placedBuildings;
+    const collisionResult = this.collisionDetection.validateBuildingTerrain(
+      spot.x, spot.z, buildingType
+    );
+    
+    if (collisionResult.hasCollision) {
+      return false;
+    }
+    
+    // Check if at least one tile of the building is adjacent to road
+    let isAdjacentToRoad = false;
+    for (let dx = 0; dx < buildingType.width; dx++) {
+      for (let dz = 0; dz < buildingType.height; dz++) {
+        const checkSpot = { x: spot.x + dx, z: spot.z + dz };
+        if (this.collisionDetection.isAdjacentToRoad(checkSpot.x, checkSpot.z, roadState)) {
+          isAdjacentToRoad = true;
+          break;
+        }
+      }
+      if (isAdjacentToRoad) break;
+    }
+    
+    if (!isAdjacentToRoad) {
+      return false;
+    }
+
     return true;
   }
 }

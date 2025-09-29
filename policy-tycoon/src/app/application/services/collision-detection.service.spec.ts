@@ -10,13 +10,27 @@
 import { CollisionDetectionService, CollisionResult } from './collision-detection.service';
 import { RoadGenerationState, RoadTile, Direction, Point } from '../../data/models/city-generation';
 
+// Mock TerrainGenerationService
+class MockTerrainGenerationService {
+  getHeightAt(x: number, z: number): number {
+    // Simple height function for testing
+    return Math.abs(x) + Math.abs(z);
+  }
+  
+  isWaterAt(x: number, z: number): boolean {
+    // Water at positions near origin
+    return Math.abs(x) < 5 && Math.abs(z) < 5;
+  }
+}
+
 describe('CollisionDetectionService - Zoneless', () => {
   let service: CollisionDetectionService;
   let mockRoadState: RoadGenerationState;
 
   beforeEach(() => {
-    // Create service directly for zoneless mode
-    service = new CollisionDetectionService();
+    // Create service with mock terrain service
+    const mockTerrainService = new MockTerrainGenerationService() as any;
+    service = new CollisionDetectionService(mockTerrainService);
     
     // Initialize mock road state
     mockRoadState = {
@@ -34,7 +48,7 @@ describe('CollisionDetectionService - Zoneless', () => {
 
   describe('canPlaceRoad', () => {
     it('should allow road placement on empty valid terrain', () => {
-      const result = service.canPlaceRoad(0, 0, mockRoadState);
+      const result = service.canPlaceRoad(10, 10, mockRoadState);
       
       expect(result.hasCollision).toBeFalsy();
       expect(result.collisionType).toBe('none');
@@ -67,29 +81,12 @@ describe('CollisionDetectionService - Zoneless', () => {
     });
 
     it('should detect collision with water', () => {
-      // Test position near water body at (100, 200) with radius 50
-      const result = service.canPlaceRoad(120, 220, mockRoadState);
+      // Test position near water (near origin)
+      const result = service.canPlaceRoad(2, 2, mockRoadState);
       
       expect(result.hasCollision).toBeTruthy();
       expect(result.collisionType).toBe('water');
       expect(result.message).toContain('Cannot place road on water');
-    });
-
-    it('should detect collision with impassable terrain', () => {
-      // Test position near impassable area at (-200, 300) with radius 25
-      const result = service.canPlaceRoad(-200, 300, mockRoadState);
-      
-      expect(result.hasCollision).toBeTruthy();
-      expect(result.collisionType).toBe('impassable');
-      expect(result.message).toContain('Terrain is impassable');
-    });
-
-    it('should allow road placement on moderate slopes', () => {
-      // Test on terrain with acceptable slope
-      const result = service.canPlaceRoad(50, 50, mockRoadState);
-      
-      expect(result.hasCollision).toBeFalsy();
-      expect(result.collisionType).toBe('none');
     });
   });
 
@@ -136,24 +133,56 @@ describe('CollisionDetectionService - Zoneless', () => {
     });
 
     it('should detect collision with water for buildings', () => {
-      const result = service.canPlaceBuilding(100, 200, mockRoadState, mockBuildingMap);
+      const result = service.canPlaceBuilding(2, 2, mockRoadState, mockBuildingMap);
       
       expect(result.hasCollision).toBeTruthy();
       expect(result.collisionType).toBe('water');
       expect(result.message).toContain('Cannot place building on water');
     });
+  });
 
-    it('should be more strict about slopes for buildings than roads', () => {
-      // Buildings should have stricter slope requirements than roads
-      // This test verifies that buildings are rejected on slopes that roads might accept
+  describe('isPassable', () => {
+    it('should allow movement between tiles with small height difference', () => {
+      // Height difference of 1 should be passable
+      expect(service.isPassable(0, 0, 1, 0)).toBeTruthy(); // Height 0 to 1
+    });
+
+    it('should prevent movement between tiles with large height difference', () => {
+      // Height difference of 3 should not be passable
+      expect(service.isPassable(0, 0, 3, 0)).toBeFalsy(); // Height 0 to 3
+    });
+
+    it('should allow movement between tiles with same height', () => {
+      // Same height should be passable
+      expect(service.isPassable(1, 1, 2, 1)).toBeTruthy(); // Both height 2
+    });
+  });
+
+  describe('validateBuildingTerrain', () => {
+    it('should allow building placement on flat terrain', () => {
+      // 1x1 building on flat terrain
+      const result = service.validateBuildingTerrain(10, 10, { width: 1, height: 1 });
       
-      // Test on a position that might be acceptable for roads but not buildings
-      // The exact position would depend on the terrain generation algorithm
-      const result = service.canPlaceBuilding(0, 0, mockRoadState, mockBuildingMap);
+      expect(result.hasCollision).toBeFalsy();
+      expect(result.collisionType).toBe('none');
+    });
+
+    it('should prevent building placement on uneven terrain', () => {
+      // 2x2 building spanning different heights
+      const result = service.validateBuildingTerrain(0, 0, { width: 2, height: 2 });
       
-      // This test validates the concept - actual slope values depend on terrain generation
-      expect(result).toBeDefined();
-      expect(result.collisionType).toBeDefined();
+      expect(result.hasCollision).toBeTruthy();
+      expect(result.collisionType).toBe('terrain');
+      expect(result.message).toContain('Terrain too uneven');
+    });
+
+    it('should detect water at building corners', () => {
+      // Building with a corner in water
+      const result = service.validateBuildingTerrain(3, 3, { width: 2, height: 2 });
+      
+      expect(result.hasCollision).toBeTruthy();
+      expect(result.collisionType).toBe('water');
+      expect(result.message).toContain('Cannot place building on water');
     });
   });
 
@@ -191,7 +220,7 @@ describe('CollisionDetectionService - Zoneless', () => {
 
     it('should detect water collision along road segment', () => {
       // Try to build road through water area
-      const result = service.checkRoadOverlap(90, 190, 110, 210, mockRoadState);
+      const result = service.checkRoadOverlap(2, 2, 4, 4, mockRoadState);
       
       expect(result.hasCollision).toBeTruthy();
       expect(result.collisionType).toBe('water');
@@ -395,29 +424,15 @@ describe('CollisionDetectionService - Zoneless', () => {
 
     it('should handle water body edge cases', () => {
       // Test positions at the edge of water bodies
-      // Water body at (100, 200) with radius 50
+      // Water body near origin
       
       // Just inside water
-      const insideResult = service.canPlaceRoad(130, 200, mockRoadState);
+      const insideResult = service.canPlaceRoad(2, 2, mockRoadState);
       expect(insideResult.hasCollision).toBeTruthy();
       expect(insideResult.collisionType).toBe('water');
       
       // Just outside water (should be valid)
-      const outsideResult = service.canPlaceRoad(160, 200, mockRoadState);
-      expect(outsideResult.hasCollision).toBeFalsy();
-    });
-
-    it('should handle impassable terrain edge cases', () => {
-      // Test positions at the edge of impassable areas
-      // Impassable area at (-200, 300) with radius 25
-      
-      // Just inside impassable area
-      const insideResult = service.canPlaceRoad(-190, 300, mockRoadState);
-      expect(insideResult.hasCollision).toBeTruthy();
-      expect(insideResult.collisionType).toBe('impassable');
-      
-      // Just outside impassable area (should be valid)
-      const outsideResult = service.canPlaceRoad(-170, 300, mockRoadState);
+      const outsideResult = service.canPlaceRoad(6, 6, mockRoadState);
       expect(outsideResult.hasCollision).toBeFalsy();
     });
   });
@@ -433,17 +448,23 @@ describe('CollisionDetectionService - Zoneless', () => {
         isDeadEnd: false
       });
 
-      // Test road segment that would hit existing road, then water
-      const result = service.checkRoadOverlap(-5, 0, 120, 200, mockRoadState);
-      
+      // Try to place road at same position (road collision)
+      let result = service.canPlaceRoad(0, 0, mockRoadState);
       expect(result.hasCollision).toBeTruthy();
-      // Should detect the first collision (existing road or water)
-      expect(['road', 'water']).toContain(result.collisionType);
+      expect(result.collisionType).toBe('road');
+
+      // Try to place road in water (water collision)
+      result = service.canPlaceRoad(2, 2, mockRoadState);
+      expect(result.hasCollision).toBeTruthy();
+      expect(result.collisionType).toBe('water');
+
+      // Try to place road outside bounds (bounds collision)
+      result = service.canPlaceRoad(-2000, 0, mockRoadState);
+      expect(result.hasCollision).toBeTruthy();
+      expect(result.collisionType).toBe('bounds');
     });
 
-    it('should validate building placement near roads and terrain features', () => {
-      const mockBuildingMap = new Map();
-      
+    it('should handle building placement with complex constraints', () => {
       // Place a road
       mockRoadState.placedRoads.set('10,10', {
         x: 10, z: 10,
@@ -453,11 +474,27 @@ describe('CollisionDetectionService - Zoneless', () => {
         isDeadEnd: false
       });
 
-      // Test building adjacent to road (should be valid if terrain allows)
-      const adjacentResult = service.canPlaceBuilding(11, 10, mockRoadState, mockBuildingMap);
-      
-      // Should be valid (adjacent to road, not on water/impassable terrain)
-      expect(adjacentResult.hasCollision).toBeFalsy();
+      const mockBuildingMap = new Map<string, any>();
+
+      // Try to place building on road (should fail)
+      let result = service.canPlaceBuilding(10, 10, mockRoadState, mockBuildingMap);
+      expect(result.hasCollision).toBeTruthy();
+      expect(result.collisionType).toBe('road');
+
+      // Try to place building in water (should fail)
+      result = service.canPlaceBuilding(2, 2, mockRoadState, mockBuildingMap);
+      expect(result.hasCollision).toBeTruthy();
+      expect(result.collisionType).toBe('water');
+
+      // Try to place building outside bounds (should fail)
+      result = service.canPlaceBuilding(-2000, 0, mockRoadState, mockBuildingMap);
+      expect(result.hasCollision).toBeTruthy();
+      expect(result.collisionType).toBe('bounds');
+
+      // Try to place building on valid terrain (should succeed)
+      result = service.canPlaceBuilding(15, 15, mockRoadState, mockBuildingMap);
+      expect(result.hasCollision).toBeFalsy();
+      expect(result.collisionType).toBe('none');
     });
   });
 });

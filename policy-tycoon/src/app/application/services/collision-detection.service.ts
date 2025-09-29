@@ -7,17 +7,7 @@
 
 import { Injectable } from '@angular/core';
 import { Point, RoadGenerationState, RoadTile } from '../../data/models/city-generation';
-
-export interface TerrainType {
-  isWater: boolean;
-  isImpassable: boolean;
-  elevation: number;
-  slope: number;
-  // NEW: Track if this is a slope that can have artificial structures
-  isSlope: boolean;
-  slopeDirection?: 'north' | 'south' | 'east' | 'west';
-  heightDifference?: number;
-}
+import { TerrainGenerationService } from './terrain-generation.service'; // Import TerrainGenerationService
 
 export interface CollisionResult {
   hasCollision: boolean;
@@ -37,9 +27,7 @@ export class CollisionDetectionService {
     maxZ: 1000
   };
 
-  // Terrain elevation tolerance for road placement
-  private readonly maxElevationDifference = 2.0;
-  private readonly maxSlope = 0.3; // 30% grade maximum
+  constructor(private terrainService: TerrainGenerationService) {}
 
   /**
    * Check if a road segment can be placed at the specified coordinates
@@ -108,11 +96,8 @@ export class CollisionDetectionService {
       };
     }
 
-    // Check terrain suitability for buildings (stricter than roads)
-    const terrainResult = this.validateBuildingTerrain(x, z);
-    if (terrainResult.hasCollision) {
-      return terrainResult;
-    }
+    // Note: We can't fully validate building terrain here without knowing the building type
+    // The full validation will be done in the BuildingPlacerService when the building type is known
 
     return {
       hasCollision: false,
@@ -124,10 +109,10 @@ export class CollisionDetectionService {
    * Validate terrain suitability for road placement
    */
   private validateTerrain(x: number, z: number): CollisionResult {
-    const terrain = this.getTerrainAt(x, z);
-
     // Check for water
-    if (terrain.isWater) {
+    // TODO: Get water level from terrain service
+    const isWater = this.terrainService.isWaterAt(x, z);
+    if (isWater) {
       return {
         hasCollision: true,
         collisionType: 'water',
@@ -135,33 +120,7 @@ export class CollisionDetectionService {
       };
     }
 
-    // Check for impassable terrain
-    if (terrain.isImpassable) {
-      return {
-        hasCollision: true,
-        collisionType: 'impassable',
-        message: `Terrain is impassable at position (${x}, ${z})`
-      };
-    }
-
-    // NEW: Roads can now be placed on slopes (but will require a full ramp)
-    if (terrain.isSlope) {
-      // Roads are allowed on slopes now - they will be handled by creating full ramps
-      return {
-        hasCollision: false,
-        collisionType: 'none'
-      };
-    }
-
-    // Check slope - roads can handle moderate slopes
-    if (terrain.slope > this.maxSlope) {
-      return {
-        hasCollision: true,
-        collisionType: 'terrain',
-        message: `Terrain too steep for road at position (${x}, ${z}), slope: ${terrain.slope.toFixed(2)}`
-      };
-    }
-
+    // Roads can be placed on most terrain now, with height difference validation done between adjacent tiles
     return {
       hasCollision: false,
       collisionType: 'none'
@@ -169,13 +128,38 @@ export class CollisionDetectionService {
   }
 
   /**
-   * Validate terrain suitability for building placement (stricter than roads)
+   * Validate building terrain across its footprint
+   * @param x The x coordinate of the building
+   * @param z The z coordinate of the building
+   * @param buildingType The type of building being placed
+   * @returns CollisionResult indicating if the building can be placed
    */
-  private validateBuildingTerrain(x: number, z: number): CollisionResult {
-    const terrain = this.getTerrainAt(x, z);
+  public validateBuildingTerrain(x: number, z: number, buildingType: any): CollisionResult {
+    const footprintCorners = [
+      { x: x, z: z },
+      { x: x + buildingType.width - 1, z: z },
+      { x: x, z: z + buildingType.height - 1 },
+      { x: x + buildingType.width - 1, z: z + buildingType.height - 1 },
+    ];
 
-    // Check for water
-    if (terrain.isWater) {
+    const cornerHeights = footprintCorners.map(p => this.terrainService.getHeightAt(p.x, p.z));
+
+    const minHeight = Math.min(...cornerHeights);
+    const maxHeight = Math.max(...cornerHeights);
+
+    // Allow placement only if the ground is flat or has a max difference of 1 (a gentle, consistent slope)
+    if (maxHeight - minHeight > 1) {
+      return {
+        hasCollision: true,
+        collisionType: 'terrain',
+        message: `Terrain too uneven for building at (${x}, ${z}). Height difference is ${maxHeight - minHeight}.`
+      };
+    }
+    
+    // Check for water at any corner
+    // TODO: Get water level from terrain service
+    const isAnyCornerWater = footprintCorners.some(corner => this.terrainService.isWaterAt(corner.x, corner.z));
+    if (isAnyCornerWater) {
       return {
         hasCollision: true,
         collisionType: 'water',
@@ -183,38 +167,7 @@ export class CollisionDetectionService {
       };
     }
 
-    // Check for impassable terrain
-    if (terrain.isImpassable) {
-      return {
-        hasCollision: true,
-        collisionType: 'impassable',
-        message: `Terrain is impassable at position (${x}, ${z})`
-      };
-    }
-
-    // NEW: Buildings can now be placed on slopes (but will require a man-made block)
-    if (terrain.isSlope) {
-      // Buildings are allowed on slopes now - they will be handled by creating man-made blocks
-      return {
-        hasCollision: false,
-        collisionType: 'none'
-      };
-    }
-
-    // Buildings require flatter terrain than roads
-    const maxBuildingSlope = this.maxSlope * 0.5; // 15% grade maximum for buildings
-    if (terrain.slope > maxBuildingSlope) {
-      return {
-        hasCollision: true,
-        collisionType: 'terrain',
-        message: `Terrain too steep for building at position (${x}, ${z}), slope: ${terrain.slope.toFixed(2)}`
-      };
-    }
-
-    return {
-      hasCollision: false,
-      collisionType: 'none'
-    };
+    return { hasCollision: false, collisionType: 'none' };
   }
 
   /**
@@ -225,157 +178,6 @@ export class CollisionDetectionService {
            x <= this.mapBounds.maxX &&
            z >= this.mapBounds.minZ && 
            z <= this.mapBounds.maxZ;
-  }
-
-  /**
-   * Get terrain information at specified coordinates
-   * This is a simplified implementation - in a real game this would query actual terrain data
-   */
-  private getTerrainAt(x: number, z: number): TerrainType {
-    // Simplified terrain generation for testing
-    // In a real implementation, this would query actual terrain/heightmap data
-    
-    // Create some water areas for testing
-    const isNearWater = this.isNearWaterBody(x, z);
-    
-    // Create some impassable areas (mountains, cliffs)
-    const isImpassable = this.isImpassableTerrain(x, z);
-    
-    // Calculate elevation and slope based on position
-    const elevation = this.calculateElevation(x, z);
-    const slope = this.calculateSlope(x, z);
-    
-    // NEW: Check if this is a slope by comparing with neighbors
-    const isSlope = this.isPositionOnSlope(x, z);
-    const slopeInfo = isSlope ? this.getSlopeDirectionAndHeight(x, z) : undefined;
-
-    return {
-      isWater: isNearWater,
-      isImpassable: isImpassable,
-      elevation: elevation,
-      slope: slope,
-      isSlope: isSlope,
-      slopeDirection: slopeInfo?.direction,
-      heightDifference: slopeInfo?.heightDifference
-    };
-  }
-
-  /**
-   * Check if a position is on a slope by comparing elevation with neighbors
-   */
-  private isPositionOnSlope(x: number, z: number): boolean {
-    const currentElevation = this.calculateElevation(x, z);
-    
-    // Check all four neighbors
-    const neighbors = [
-      { dx: 1, dz: 0 },   // East
-      { dx: -1, dz: 0 },  // West
-      { dx: 0, dz: 1 },   // South
-      { dx: 0, dz: -1 }   // North
-    ];
-    
-    for (const n of neighbors) {
-      const nx = x + n.dx;
-      const nz = z + n.dz;
-      const neighborElevation = this.calculateElevation(nx, nz);
-      
-      // If there's a height difference of exactly 1, it's a slope
-      if (Math.abs(currentElevation - neighborElevation) === 1) {
-        return true;
-      }
-    }
-    
-    return false;
-  }
-
-  /**
-   * Get slope direction and height difference
-   */
-  private getSlopeDirectionAndHeight(x: number, z: number): { direction: 'north' | 'south' | 'east' | 'west', heightDifference: number } | null {
-    const currentElevation = this.calculateElevation(x, z);
-    
-    // Check all four neighbors
-    const neighbors = [
-      { dx: 1, dz: 0, dir: 'east' as const },
-      { dx: -1, dz: 0, dir: 'west' as const },
-      { dx: 0, dz: 1, dir: 'south' as const },
-      { dx: 0, dz: -1, dir: 'north' as const }
-    ];
-    
-    for (const n of neighbors) {
-      const nx = x + n.dx;
-      const nz = z + n.dz;
-      const neighborElevation = this.calculateElevation(nx, nz);
-      
-      // If there's a height difference of exactly 1, it's a slope
-      const heightDiff = currentElevation - neighborElevation;
-      if (Math.abs(heightDiff) === 1) {
-        return {
-          direction: n.dir,
-          heightDifference: heightDiff
-        };
-      }
-    }
-    
-    return null;
-  }
-
-  /**
-   * Check if position is near a water body
-   */
-  private isNearWaterBody(x: number, z: number): boolean {
-    // Create some test water bodies
-    const waterBodies = [
-      { centerX: 100, centerZ: 200, radius: 50 },
-      { centerX: -300, centerZ: -150, radius: 30 },
-      { centerX: 500, centerZ: -400, radius: 40 }
-    ];
-
-    return waterBodies.some(water => {
-      const distance = Math.sqrt((x - water.centerX) ** 2 + (z - water.centerZ) ** 2);
-      return distance <= water.radius;
-    });
-  }
-
-  /**
-   * Check if terrain is impassable (mountains, cliffs, etc.)
-   */
-  private isImpassableTerrain(x: number, z: number): boolean {
-    // Create some test impassable areas
-    const impassableAreas = [
-      { centerX: -200, centerZ: 300, radius: 25 },
-      { centerX: 400, centerZ: 100, radius: 35 }
-    ];
-
-    return impassableAreas.some(area => {
-      const distance = Math.sqrt((x - area.centerX) ** 2 + (z - area.centerZ) ** 2);
-      return distance <= area.radius;
-    });
-  }
-
-  /**
-   * Calculate elevation at position using simple noise function
-   */
-  private calculateElevation(x: number, z: number): number {
-    // Simple elevation calculation using sine waves
-    const baseElevation = 10;
-    const variation = Math.sin(x * 0.01) * Math.cos(z * 0.01) * 5;
-    return baseElevation + variation;
-  }
-
-  /**
-   * Calculate slope at position
-   */
-  private calculateSlope(x: number, z: number): number {
-    // Calculate slope by comparing elevation with nearby points
-    const currentElevation = this.calculateElevation(x, z);
-    const eastElevation = this.calculateElevation(x + 1, z);
-    const northElevation = this.calculateElevation(x, z + 1);
-    
-    const slopeX = Math.abs(eastElevation - currentElevation);
-    const slopeZ = Math.abs(northElevation - currentElevation);
-    
-    return Math.max(slopeX, slopeZ);
   }
 
   /**
@@ -440,6 +242,18 @@ export class CollisionDetectionService {
   }
 
   /**
+   * Checks if movement is possible between two adjacent tiles based on height difference.
+   * @returns true if the height difference is 1 or less.
+   */
+  public isPassable(fromX: number, fromZ: number, toX: number, toZ: number): boolean {
+    const fromHeight = this.terrainService.getHeightAt(fromX, fromZ);
+    const toHeight = this.terrainService.getHeightAt(toX, toZ);
+
+    // Passable if the height difference is at most 1 unit
+    return Math.abs(fromHeight - toHeight) <= 1;
+  }
+
+  /**
    * Check if a position is adjacent to any road
    */
   isAdjacentToRoad(x: number, z: number, roadState: RoadGenerationState): boolean {
@@ -473,15 +287,6 @@ export class CollisionDetectionService {
    */
   getMapBounds() {
     return { ...this.mapBounds };
-  }
-
-  /**
-   * Set custom terrain data for testing
-   */
-  setTestTerrain(waterBodies: Array<{centerX: number, centerZ: number, radius: number}>, 
-                 impassableAreas: Array<{centerX: number, centerZ: number, radius: number}>) {
-    // This method would be used for unit testing to set up specific terrain scenarios
-    // Implementation would store these in instance variables to override the default terrain generation
   }
 
   /**

@@ -2,6 +2,12 @@ import { Injectable, WritableSignal, signal, Inject, Optional } from '@angular/c
 import * as BABYLON from '@babylonjs/core';
 import { TileType, type TerrainGenerationConfig, type World, type WFGridCell } from '../../data/models';
 
+// Define the SlopeObject interface
+export interface SlopeObject {
+  direction: 'north' | 'south' | 'east' | 'west';
+  heightDifference: number;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -11,6 +17,9 @@ export class TerrainGenerationService {
   private tileMaterials: { [key: string]: BABYLON.StandardMaterial } = {};
   private isGenerating = false;
   private logger: any = null;
+  
+  // Keep track of where slopes are manually placed
+  private placedSlopes = new Map<string, SlopeObject>();
 
   constructor(@Optional() @Inject('Logger') logger?: any) {
     this.logger = logger || null;
@@ -574,6 +583,81 @@ export class TerrainGenerationService {
       if (height <= waterLevel + 7) return this.TILE_TYPES[3];
       if (height <= waterLevel + 13) return this.TILE_TYPES[4];
       return this.TILE_TYPES[5];
+  }
+
+  /**
+   * Get the height at the specified world coordinates
+   * @param x World X coordinate
+   * @param z World Z coordinate
+   * @returns The height at the specified coordinates, or 0 if not found
+   */
+  public getHeightAt(x: number, z: number): number {
+    // Convert world coordinates to chunk coordinates
+    const chunkX = Math.floor(x / this.CHUNK_SIZE);
+    const chunkZ = Math.floor(z / this.CHUNK_SIZE);
+    
+    // Convert world coordinates to local chunk coordinates
+    const localX = x - (chunkX * this.CHUNK_SIZE);
+    const localZ = z - (chunkZ * this.CHUNK_SIZE);
+    
+    // Get the chunk
+    const chunkKey = `${chunkX},${chunkZ}`;
+    const chunk = this.world[chunkKey];
+    
+    // Return height if chunk and grid exist
+    if (chunk && chunk.grid && 
+        localZ >= 0 && localZ < this.CHUNK_SIZE && 
+        localX >= 0 && localX < this.CHUNK_SIZE) {
+      const height = chunk.grid[localZ][localX].height;
+      return height !== null ? height : 0;
+    }
+    
+    // If we can't find the chunk or it's out of bounds, return 0
+    return 0;
+  }
+
+  /**
+   * Check if the specified coordinates are water
+   * @param x World X coordinate
+   * @param z World Z coordinate
+   * @returns True if the coordinates are water, false otherwise
+   */
+  public isWaterAt(x: number, z: number, waterLevel: number = 0): boolean {
+    const height = this.getHeightAt(x, z);
+    return height <= waterLevel;
+  }
+
+  /**
+   * Add a slope at the specified coordinates
+   * @param x World X coordinate
+   * @param z World Z coordinate
+   * @param slopeData The slope data to store
+   */
+  public addSlope(x: number, z: number, slopeData: SlopeObject): void {
+    const key = `${x},${z}`;
+    this.placedSlopes.set(key, slopeData);
+  }
+
+  /**
+   * Check if there is a slope at the specified coordinates
+   * @param x World X coordinate
+   * @param z World Z coordinate
+   * @returns True if there is a slope at the coordinates, false otherwise
+   */
+  public hasSlope(x: number, z: number): boolean {
+    const key = `${x},${z}`;
+    return this.placedSlopes.has(key);
+  }
+
+  /**
+   * Get slope data at the specified coordinates
+   * @param x World X coordinate
+   * @param z World Z coordinate
+   * @returns The slope data if it exists, undefined otherwise
+   */
+  public getSlope(x: number, z: number): SlopeObject | undefined {
+    const key = `${x},${z}`;
+    return this.placedSlopes.get(key);
   }
 
 }
