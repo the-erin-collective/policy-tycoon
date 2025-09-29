@@ -3,6 +3,14 @@ import { TerrainGenerationService } from './terrain-generation.service';
 import { CollisionDetectionService } from './collision-detection.service';
 import { CityStartPoint } from '../../data/models/city-generation';
 
+// Add an interface for clarity
+interface SearchBounds {
+  minX: number;
+  maxX: number;
+  minZ: number;
+  maxZ: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class SiteFinderService {
   constructor(
@@ -16,7 +24,7 @@ export class SiteFinderService {
    * @param minAreaSize The minimum number of connected buildable tiles required for a valid site.
    * @param mapBounds The boundaries of the map to search within.
    */
-  public findCityStartPoints(targetCityCount: number, minAreaSize: number, mapBounds: { minX: number, maxX: number, minZ: number, maxZ: number }): CityStartPoint[] {
+  public findCityStartPoints(targetCityCount: number, minAreaSize: number, mapBounds: SearchBounds): CityStartPoint[] {
     const foundSites: CityStartPoint[] = [];
     const checkedTiles = new Set<string>(); // Tracks all tiles that have been part of any search.
 
@@ -26,7 +34,7 @@ export class SiteFinderService {
     while (foundSites.length < targetCityCount && attempts < maxAttempts) {
       attempts++;
 
-      // 1. Pick a random, unchecked starting tile
+      // 1. Pick a random, unchecked starting tile within the specified bounds
       const randX = Math.floor(Math.random() * (mapBounds.maxX - mapBounds.minX + 1)) + mapBounds.minX;
       const randZ = Math.floor(Math.random() * (mapBounds.maxZ - mapBounds.minZ + 1)) + mapBounds.minZ;
       const key = `${randX},${randZ}`;

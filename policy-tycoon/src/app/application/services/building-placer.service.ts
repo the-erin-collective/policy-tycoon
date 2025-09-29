@@ -160,21 +160,27 @@ export class BuildingPlacerService implements BuildingPlacer {
           }
           
           // Create and place the building
-          const building: Building = {
+          // Get terrain height for proper 3D placement
+          const terrainHeight = this.terrainGeneration.getHeightAt(selectedSpot.x, selectedSpot.z);
+          
+          // Store terrain height information in a custom property
+          const building: Building & { y?: number } = {
             x: selectedSpot.x,
             z: selectedSpot.z,
             type: buildingType,
-            population: buildingType.population
+            population: buildingType.population,
+            // Add y coordinate for 3D placement as a custom property
+            y: terrainHeight
           };
 
           // Add building to placement state - store the building at its primary position
           const buildingKey = `${building.x},${building.z}`;
-          placementState.placedBuildings.set(buildingKey, building);
+          placementState.placedBuildings.set(buildingKey, building as Building);
           placementState.currentPopulation += building.population;
 
           // Log successful placement
           if (attempts % 20 === 0 || placementState.currentPopulation >= targetPopulation) { // Log every 20 placements or when complete
-            this.logger.info(`Placed building at (${building.x},${building.z}), type: ${building.type.name}, population: ${building.population}. Total: ${placementState.currentPopulation}/${targetPopulation}`);
+            this.logger.info(`Placed building at (${building.x},${building.z}) at height ${terrainHeight}, type: ${building.type.name}, population: ${building.population}. Total: ${placementState.currentPopulation}/${targetPopulation}`);
           }
 
         } catch (iterationError) {
@@ -374,7 +380,7 @@ export class BuildingPlacerService implements BuildingPlacer {
   }
 
   /**
-   * Find empty tiles adjacent to a road position
+   * Find empty tiles adjacent to a road position that are suitable for building placement
    */
   private findAdjacentEmptyTiles(roadPosition: Point, roadNetwork: RoadNetwork): Point[] {
     const adjacentTiles: Point[] = [];
@@ -388,8 +394,9 @@ export class BuildingPlacerService implements BuildingPlacer {
     ];
 
     for (const position of adjacentPositions) {
-      // Check if position is empty (no road)
-      if (!this.hasRoadAt(position, roadNetwork)) {
+      // Check if position is empty (no road) and is buildable land
+      if (!this.hasRoadAt(position, roadNetwork) && 
+          this.collisionDetection.isBuildableLand(roadPosition.x, roadPosition.z, position.x, position.z)) {
         adjacentTiles.push(position);
       }
     }
@@ -689,29 +696,10 @@ export class BuildingPlacerService implements BuildingPlacer {
       return false;
     }
 
-    // NEW: Enhanced validation to ensure buildings are placed between roads in organized blocks
-    // Check that the spot has proper road adjacency pattern for organized placement
-    const adjacentRoads = this.getAdjacentRoadCount(spot, roadState);
-    
-    // Buildings should be adjacent to at least one road but not completely surrounded by roads
-    // This creates more natural spacing and prevents cluttered placement
-    if (adjacentRoads === 0) {
-      return false; // Not adjacent to any roads
-    }
-    
-    // Prefer spots with 1-3 adjacent roads for more natural city block formation
-   // if (adjacentRoads > 3) {
-      // Allow high adjacency only in certain cases (e.g., central areas)
-   //   const isCentralArea = this.isInCentralArea(spot, roadState);
-   //   if (!isCentralArea) {
-    //    return false; // Too many adjacent roads for non-central areas
-    //  }
-   // }
-
     // NEW: Check for building clustering to maintain organized blocks
-    //if (!this.isInOrganizedBlock(spot, placementState, roadState)) {
-    //  return false;
-   // }
+    if (!this.isInOrganizedBlock(spot, placementState, roadState)) {
+      return false;
+    }
 
     return true;
   }

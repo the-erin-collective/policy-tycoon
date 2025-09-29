@@ -14,7 +14,7 @@ import {
   SeededRandom,
   CityStartPoint
 } from '../../data/models/city-generation';
-import { RecursiveRoadBuilderService } from './recursive-road-builder.service';
+import { RecursiveRoadBuilderService } from './recursive-road-builder.service'; // Import RecursiveRoadBuilderService directly
 import { BuildingPlacerService } from './building-placer.service';
 import { CityNameGeneratorService } from './city-name-generator.service';
 import { CityConfigurationService } from './city-configuration.service';
@@ -50,7 +50,7 @@ export class ClassicCityGeneratorService implements ClassicCityGenerator {
   );
 
   constructor(
-    private roadNetworkBuilder: RecursiveRoadBuilderService,
+    private roadNetworkBuilder: RecursiveRoadBuilderService, // Use RecursiveRoadBuilderService directly
     private buildingPlacer: BuildingPlacerService,
     private cityNameGenerator: CityNameGeneratorService,
     private cityConfiguration: CityConfigurationService,
@@ -94,13 +94,17 @@ export class ClassicCityGeneratorService implements ClassicCityGenerator {
       switchMap(() => {
         try {
           // Step 2: Find all suitable starting points using the SiteFinderService
-          const defaultBounds = mapBounds || { minX: -100, maxX: 100, minZ: -100, maxZ: 100 };
-          this.logger.info(`Finding city start points within bounds: ${JSON.stringify(defaultBounds)}`);
+          // Calculate the actual rendered terrain bounds dynamically
+          // For renderDistance=2: bounds are from (-8,-8) to (15,15)
+          const renderedTerrainBounds = this.calculateTerrainBounds(terrainConfig.renderDistance);
+          const searchBounds = mapBounds || renderedTerrainBounds;
+          
+          this.logger.info(`Finding city start points within bounds: ${JSON.stringify(searchBounds)}`);
           
           const cityStartPoints = this.siteFinder.findCityStartPoints(
             targetCityCount,
             minAreaSize,
-            defaultBounds
+            searchBounds
           );
           
           if (cityStartPoints.length === 0) {
@@ -164,6 +168,60 @@ export class ClassicCityGeneratorService implements ClassicCityGenerator {
   }
 
   /**
+   * Calculate the actual terrain bounds based on render distance
+   * This ensures cities are only placed within the rendered terrain area
+   */
+  private calculateTerrainBounds(renderDistance: number): { minX: number, maxX: number, minZ: number, maxZ: number } {
+    // The spiral generation algorithm starts at (0,0) and moves outward
+    // For a given renderDistance, we need to find the min/max chunk coordinates
+    const CHUNK_SIZE = 8;
+    const worldDimensionInChunks = renderDistance * 2 - 1;
+    const totalChunks = Math.pow(worldDimensionInChunks, 2);
+    
+    // Calculate the bounds by simulating the spiral algorithm
+    let minX = 0, maxX = 0, minZ = 0, maxZ = 0;
+    let x = 0, z = 0, dx = 0, dz = 1; 
+    let sideLength = 1, steps = 0, turnCount = 0;
+    
+    // Track the bounds as we generate coordinates
+    minX = Math.min(minX, x);
+    maxX = Math.max(maxX, x);
+    minZ = Math.min(minZ, z);
+    maxZ = Math.max(maxZ, z);
+    
+    for (let i = 1; i < totalChunks; i++) {
+      if (steps >= sideLength) {
+        steps = 0;
+        [dx, dz] = [-dz, dx];
+        turnCount++;
+        if (turnCount === 2) {
+          turnCount = 0;
+          sideLength++;
+        }
+      }
+      x += dx;
+      z += dz;
+      
+      // Update bounds
+      minX = Math.min(minX, x);
+      maxX = Math.max(maxX, x);
+      minZ = Math.min(minZ, z);
+      maxZ = Math.max(maxZ, z);
+      
+      steps++;
+    }
+    
+    // Convert chunk coordinates to world coordinates
+    // Each chunk is CHUNK_SIZE units in world space
+    return {
+      minX: minX * CHUNK_SIZE,
+      maxX: (maxX + 1) * CHUNK_SIZE - 1,
+      minZ: minZ * CHUNK_SIZE,
+      maxZ: (maxZ + 1) * CHUNK_SIZE - 1
+    };
+  }
+
+  /**
    * Generate a complete city with roads, buildings, population, and name
    * Requirements: 4.2, 5.5, 7.1, 7.2, 10.1, 10.2, 10.3, 10.4
    */
@@ -187,13 +245,21 @@ export class ClassicCityGeneratorService implements ClassicCityGenerator {
       // Requirement 10.4 - Handle edge cases like invalid center points
       this.validateGenerationParameters(centerX, centerZ, size, existingCityNames);
       
+      // Get terrain height at city center for terrain-aware placement
+      const terrainHeight = this.terrainGeneration.getHeightAt(centerX, centerZ);
+      this.logger.info(`Terrain height at city center (${centerX}, ${centerZ}): ${terrainHeight}`);
+      
+      // Adjust center position to match terrain height
+      let adjustedCenterX = centerX;
+      let adjustedCenterZ = centerZ;
+      
       // Step 1: Generate target population based on city size
       const targetPopulation = this.cityConfiguration.generateTargetPopulation(size, rng);
       this.logger.info(`Generated target population: ${targetPopulation}`);
       
       // Step 2: Build initial road network
       this.logger.info('Building initial road network');
-      const roadNetwork = this.roadNetworkBuilder.buildInitialNetwork(centerX, centerZ, rng);
+      const roadNetwork = this.roadNetworkBuilder.buildInitialNetwork(adjustedCenterX, adjustedCenterZ, rng);
       this.logger.info(`Road network built with ${roadNetwork.segments.length} segments`);
       
       // Requirement 10.4 - Handle edge cases like unreachable populations
@@ -222,10 +288,10 @@ export class ClassicCityGeneratorService implements ClassicCityGenerator {
       
       // Step 5: Create name label above city center
       this.logger.info('Creating name label');
-      const nameLabel = this.cityNameGenerator.createNameLabel(cityName, centerX, centerZ);
+      const nameLabel = this.cityNameGenerator.createNameLabel(cityName, adjustedCenterX, adjustedCenterZ);
       
       // Step 6: Generate unique city ID
-      const cityId = this.generateCityId(cityName, centerX, centerZ, rng);
+      const cityId = this.generateCityId(cityName, adjustedCenterX, adjustedCenterZ, rng);
       this.logger.info(`Generated city ID: ${cityId}`);
       
       // Step 7: Create and return GeneratedCity object
@@ -233,8 +299,8 @@ export class ClassicCityGeneratorService implements ClassicCityGenerator {
         roads: roadNetwork.segments,
         buildings: buildingPlacement.buildings,
         population: buildingPlacement.totalPopulation,
-        centerX: centerX,
-        centerZ: centerZ,
+        centerX: adjustedCenterX,
+        centerZ: adjustedCenterZ,
         name: cityName,
         id: cityId
       };
@@ -243,7 +309,7 @@ export class ClassicCityGeneratorService implements ClassicCityGenerator {
       this._generatedCities.update(cities => [...cities, generatedCity]);
       this._lastGenerationStats.set(this.getGenerationStats(generatedCity));
       
-      this.logger.info(`City generation complete: ${cityName} at (${centerX}, ${centerZ}) with population ${generatedCity.population}`);
+      this.logger.info(`City generation complete: ${cityName} at (${adjustedCenterX}, ${adjustedCenterZ}) with population ${generatedCity.population}`);
       
       return generatedCity;
       
