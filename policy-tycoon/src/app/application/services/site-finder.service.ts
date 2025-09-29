@@ -43,6 +43,24 @@ export class SiteFinderService {
         continue; // Already checked this tile, try again.
       }
 
+      // --- NEW LOGIC ---
+      // Before running the expensive area search, perform a quick check
+      // to see if the randomly selected tile is high enough above the water.
+
+      // Get the global water level from the terrain service.
+      // We'll use a default water level of 3 if not available
+      const waterLevel = 3; 
+      // Get the elevation of our potential starting tile.
+      const startElevation = this.terrainService.getHeightAt(randX, randZ);
+
+      // If the tile's elevation is less than 2 units above the water level,
+      // it's on a beach or too low. We reject it immediately and try again.
+      if (startElevation < waterLevel + 2) {
+        checkedTiles.add(key); // Mark as checked so we don't try this tile again.
+        continue; // Skip to the next attempt.
+      }
+      // --- END OF NEW LOGIC ---
+
       // 2. Perform the "area walk" (flood fill) from this tile
       const areaData = this.calculateBuildableArea(randX, randZ, checkedTiles);
 

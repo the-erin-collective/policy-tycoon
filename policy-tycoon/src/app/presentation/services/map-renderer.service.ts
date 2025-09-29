@@ -280,10 +280,28 @@ export class MapRendererService {
     if (!this.modelFactory || !this.scene) return new TransformNode('empty', this.scene);
 
     const houseNode = new TransformNode('house', this.scene);
-    houseNode.position = position;
+    
+    // --- FIX FOR FLOATING BUILDINGS ---
+    // Instead of using a guessed 'y' coordinate, we query the terrain service
+    // for the *exact* ground elevation at the building's (x, z) coordinates.
+    const groundHeight = this.terrainGenerationService.getHeightAt(position.x, position.z);
+    
+    // Set the building's position. Its y-coordinate is now perfectly matched to the terrain height.
+    houseNode.position = new Vector3(
+      position.x,
+      groundHeight,
+      position.z
+    );
     houseNode.parent = parent;
 
     this.modelFactory.createHouse(houseNode, 0, 0);
+    
+    // --- FIX FOR INCORRECT SCALE ---
+    // Your 3D models are likely too large for your 1x1 tile world.
+    // We apply a uniform scaling factor to shrink them down.
+    // You may need to experiment with this value (e.g., 0.25, 0.5, 0.75) to find what looks best.
+    const scale = 0.5;
+    houseNode.scaling = new Vector3(scale, scale, scale);
     
     return houseNode;
   }
@@ -292,7 +310,18 @@ export class MapRendererService {
     if (!this.modelFactory || !this.scene) return new TransformNode('empty', this.scene);
 
     const buildingNode = new TransformNode('midrise', this.scene);
-    buildingNode.position = position;
+    
+    // --- FIX FOR FLOATING BUILDINGS ---
+    // Instead of using a guessed 'y' coordinate, we query the terrain service
+    // for the *exact* ground elevation at the building's (x, z) coordinates.
+    const groundHeight = this.terrainGenerationService.getHeightAt(position.x, position.z);
+    
+    // Set the building's position. Its y-coordinate is now perfectly matched to the terrain height.
+    buildingNode.position = new Vector3(
+      position.x,
+      groundHeight,
+      position.z
+    );
     buildingNode.parent = parent;
 
     // Create a mid-rise building with random height and color
@@ -307,6 +336,13 @@ export class MapRendererService {
 
     this.modelFactory.createMidRise(buildingNode, 0, 0, color, height);
     
+    // --- FIX FOR INCORRECT SCALE ---
+    // Your 3D models are likely too large for your 1x1 tile world.
+    // We apply a uniform scaling factor to shrink them down.
+    // You may need to experiment with this value (e.g., 0.25, 0.5, 0.75) to find what looks best.
+    const scale = 0.5;
+    buildingNode.scaling = new Vector3(scale, scale, scale);
+    
     return buildingNode;
   }
 
@@ -314,12 +350,30 @@ export class MapRendererService {
     if (!this.modelFactory || !this.scene) return new TransformNode('empty', this.scene);
 
     const buildingNode = new TransformNode('commercial', this.scene);
-    buildingNode.position = position;
+    
+    // --- FIX FOR FLOATING BUILDINGS ---
+    // Instead of using a guessed 'y' coordinate, we query the terrain service
+    // for the *exact* ground elevation at the building's (x, z) coordinates.
+    const groundHeight = this.terrainGenerationService.getHeightAt(position.x, position.z);
+    
+    // Set the building's position. Its y-coordinate is now perfectly matched to the terrain height.
+    buildingNode.position = new Vector3(
+      position.x,
+      groundHeight,
+      position.z
+    );
     buildingNode.parent = parent;
 
     // Commercial buildings are taller and use specific colors
     const height = tier >= CityTier.Metropolis ? 4 + Math.random() * 3 : 3 + Math.random() * 2;
     this.modelFactory.createMidRise(buildingNode, 0, 0, new Color3(0.15, 0.66, 0.74), height);
+    
+    // --- FIX FOR INCORRECT SCALE ---
+    // Your 3D models are likely too large for your 1x1 tile world.
+    // We apply a uniform scaling factor to shrink them down.
+    // You may need to experiment with this value (e.g., 0.25, 0.5, 0.75) to find what looks best.
+    const scale = 0.5;
+    buildingNode.scaling = new Vector3(scale, scale, scale);
     
     return buildingNode;
   }
@@ -328,11 +382,29 @@ export class MapRendererService {
     if (!this.modelFactory || !this.scene) return new TransformNode('empty', this.scene);
 
     const buildingNode = new TransformNode('civic', this.scene);
-    buildingNode.position = position;
+    
+    // --- FIX FOR FLOATING BUILDINGS ---
+    // Instead of using a guessed 'y' coordinate, we query the terrain service
+    // for the *exact* ground elevation at the building's (x, z) coordinates.
+    const groundHeight = this.terrainGenerationService.getHeightAt(position.x, position.z);
+    
+    // Set the building's position. Its y-coordinate is now perfectly matched to the terrain height.
+    buildingNode.position = new Vector3(
+      position.x,
+      groundHeight,
+      position.z
+    );
     buildingNode.parent = parent;
 
     // Civic buildings have distinctive appearance
     this.modelFactory.createMidRise(buildingNode, 0, 0, new Color3(0.98, 0.55, 0.2), 2.8);
+    
+    // --- FIX FOR INCORRECT SCALE ---
+    // Your 3D models are likely too large for your 1x1 tile world.
+    // We apply a uniform scaling factor to shrink them down.
+    // You may need to experiment with this value (e.g., 0.25, 0.5, 0.75) to find what looks best.
+    const scale = 0.5;
+    buildingNode.scaling = new Vector3(scale, scale, scale);
     
     return buildingNode;
   }

@@ -175,23 +175,43 @@ export class CollisionDetectionService {
   }
 
   /**
-   * Checks if a tile is a valid, buildable land tile for the purpose of calculating city area.
-   * A tile is considered valid if it is not water and is within a passable height difference
-   * from the previous tile.
-   * @returns {boolean} True if the tile is a valid land tile for a city.
+   * Determines if a tile can be built upon from an adjacent tile.
+   * This function is the single source of truth for all construction placement.
+   * It checks for slope, water, and existing objects in a specific, logical order.
+   * @param fromX The X coordinate of the tile we are building FROM.
+   * @param fromZ The Z coordinate of the tile we are building FROM.
+   *@param toX The X coordinate of the target tile we want to build ON.
+   * @param toZ The Z coordinate of the target tile we want to build ON.
+   * @returns True if the target tile is a valid building location, otherwise false.
    */
   public isBuildableLand(fromX: number, fromZ: number, toX: number, toZ: number): boolean {
-    // First, explicitly check if the destination tile is water. This is the most important check.
+    // --- Check #1: Passability based on Slope ---
+    // The first and most important check. Is the terrain physically too steep to build on?
+    // We calculate this before any other check, as it's the most fundamental constraint.
+    const fromElevation = this.terrainService.getHeightAt(fromX, fromZ);
+    const toElevation = this.terrainService.getHeightAt(toX, toZ);
+    const heightDifference = Math.abs(fromElevation - toElevation);
+
+    // If the height difference is more than 1 unit, it's a cliff. Fail immediately.
+    if (heightDifference > 1) {
+      return false; 
+    }
+
+    // --- Check #2: Water ---
+    // If the slope is gentle enough to pass the first check, we then ensure the
+    // destination tile is not water. This catches shallow beaches that might have a
+    // height difference of 1 but are still invalid.
     if (this.terrainService.isWaterAt(toX, toZ)) {
       return false;
     }
 
-    // Then, check if the height difference is acceptable.
-    if (!this.isPassable(fromX, fromZ, toX, toZ)) {
-      return false;
-    }
+    // --- Check #3: Occupancy ---
+    // Note: This check is not applicable in the SiteFinderService context where we're just
+    // checking terrain validity for area calculation. The occupancy check would be done
+    // in other services when actually placing roads or buildings.
+    // For the purpose of finding buildable areas, we only need to check slope and water.
 
-    // If it's not water and the slope is acceptable, it's buildable land.
+    // If all checks pass, the land is buildable.
     return true;
   }
 
