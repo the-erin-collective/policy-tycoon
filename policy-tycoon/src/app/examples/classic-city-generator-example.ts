@@ -19,10 +19,10 @@ export function demonstrateClassicCityGenerator(): void {
   console.log('=== Classic City Generator Example ===');
 
   // Create dependencies
-  const collisionDetection = new CollisionDetectionService();
-  const cityConfiguration = new CityConfigurationService();
   const logger = new GenerationLoggerService();
   const terrainGeneration = new TerrainGenerationService(logger);
+  const collisionDetection = new CollisionDetectionService(terrainGeneration);
+  const cityConfiguration = new CityConfigurationService();
   const roadNetworkBuilder = new RecursiveRoadBuilderService(collisionDetection, logger, terrainGeneration);
   const buildingPlacer = new BuildingPlacerService(collisionDetection, cityConfiguration, logger, terrainGeneration);
   const cityNameGenerator = new CityNameGeneratorService();

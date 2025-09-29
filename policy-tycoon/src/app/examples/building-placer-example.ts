@@ -22,13 +22,14 @@ export class BuildingPlacerExample {
   private cityConfiguration: CityConfigurationService;
 
   constructor() {
-    this.collisionDetection = new CollisionDetectionService();
+    const terrainService = new TerrainGenerationService(new GenerationLoggerService());
+    this.collisionDetection = new CollisionDetectionService(terrainService);
     this.cityConfiguration = new CityConfigurationService();
     this.buildingPlacer = new BuildingPlacerService(
       this.collisionDetection,
       this.cityConfiguration,
       new GenerationLoggerService(),
-      new TerrainGenerationService(new GenerationLoggerService())
+      terrainService
     );
   }
 

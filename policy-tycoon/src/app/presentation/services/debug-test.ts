@@ -13,10 +13,10 @@ async function debugConversion() {
   console.log('Starting debug test...');
   
   // Create services
-  const collisionDetection = new CollisionDetectionService();
-  const cityConfiguration = new CityConfigurationService();
   const logger = new GenerationLoggerService();
   const terrainGeneration = new TerrainGenerationService(logger);
+  const collisionDetection = new CollisionDetectionService(terrainGeneration);
+  const cityConfiguration = new CityConfigurationService();
   const roadNetworkBuilder = new RecursiveRoadBuilderService(collisionDetection, logger, terrainGeneration);
   const buildingPlacer = new BuildingPlacerService(collisionDetection, cityConfiguration, logger, terrainGeneration);
   const cityNameGenerator = new CityNameGeneratorService();

@@ -7,6 +7,8 @@
 
 import { CollisionDetectionService } from '../application/services/collision-detection.service';
 import { RoadGenerationState, RoadTile, Direction } from '../data/models/city-generation';
+import { TerrainGenerationService } from '../application/services/terrain-generation.service';
+import { GenerationLoggerService } from '../application/services/generation-logger.service';
 
 export class CollisionDetectionExample {
   private collisionService: CollisionDetectionService;
@@ -20,7 +22,8 @@ export class CollisionDetectionExample {
   private buildingMap: Map<string, any> = new Map();
 
   constructor() {
-    this.collisionService = new CollisionDetectionService();
+    const terrainService = new TerrainGenerationService(new GenerationLoggerService());
+    this.collisionService = new CollisionDetectionService(terrainService);
     this.initializeState();
   }
 

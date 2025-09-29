@@ -42,10 +42,10 @@ export class ZonelessServiceFactory {
     const scene = new Scene(engine);
     
     // Create service dependencies
-    const collisionDetection = new CollisionDetectionService();
-    const cityConfiguration = new CityConfigurationService();
     const logger = new GenerationLoggerService();
     const terrainGeneration = new TerrainGenerationService(logger);
+    const collisionDetection = new CollisionDetectionService(terrainGeneration);
+    const cityConfiguration = new CityConfigurationService();
     const roadNetworkBuilder = new RecursiveRoadBuilderService(collisionDetection, logger, terrainGeneration);
     const buildingPlacer = new BuildingPlacerService(collisionDetection, cityConfiguration, logger, terrainGeneration);
     const cityNameGenerator = new CityNameGeneratorService();
@@ -84,7 +84,8 @@ export class ZonelessServiceFactory {
    * Create individual services for focused testing
    */
   static createCollisionDetectionService(): CollisionDetectionService {
-    return new CollisionDetectionService();
+    const terrainGeneration = new TerrainGenerationService(new GenerationLoggerService());
+    return new CollisionDetectionService(terrainGeneration);
   }
 
   static createCityConfigurationService(): CityConfigurationService {
@@ -92,17 +93,17 @@ export class ZonelessServiceFactory {
   }
 
   static createRoadNetworkBuilderService(): RecursiveRoadBuilderService {
-    const collisionDetection = new CollisionDetectionService();
     const logger = new GenerationLoggerService();
     const terrainGeneration = new TerrainGenerationService(logger);
+    const collisionDetection = new CollisionDetectionService(terrainGeneration);
     return new RecursiveRoadBuilderService(collisionDetection, logger, terrainGeneration);
   }
 
   static createBuildingPlacerService(): BuildingPlacerService {
-    const collisionDetection = new CollisionDetectionService();
-    const cityConfiguration = new CityConfigurationService();
     const logger = new GenerationLoggerService();
     const terrainGeneration = new TerrainGenerationService(logger);
+    const collisionDetection = new CollisionDetectionService(terrainGeneration);
+    const cityConfiguration = new CityConfigurationService();
     return new BuildingPlacerService(collisionDetection, cityConfiguration, logger, terrainGeneration);
   }
 
