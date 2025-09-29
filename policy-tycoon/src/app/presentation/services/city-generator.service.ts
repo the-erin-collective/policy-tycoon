@@ -162,7 +162,7 @@ export class CityGeneratorService {
     );
     
     // Convert GeneratedCity to CityLayout
-    this.convertGeneratedCityToLayout(generatedCity, layout, city.position.y);
+    this.convertGeneratedCityToLayout(generatedCity, layout);
     
     // NEW: Update terrain with artificial structures for roads and buildings on slopes
     this.updateTerrainWithArtificialStructures(layout, city.tier);
@@ -239,7 +239,7 @@ export class CityGeneratorService {
   /**
    * Convert GeneratedCity from ClassicCityGenerator to CityLayout
    */
-  private convertGeneratedCityToLayout(generatedCity: any, layout: CityLayout, centerY: number): void {
+  private convertGeneratedCityToLayout(generatedCity: any, layout: CityLayout): void {
     console.log('Converting generated city:', generatedCity);
     
     // Convert roads
@@ -247,7 +247,7 @@ export class CityGeneratorService {
       console.log(`Converting ${generatedCity.roads.length} roads`);
       generatedCity.roads.forEach((road: any) => {
         // Convert road segment to CityLayout RoadSegment
-        const roadSegments = this.convertRoadSegment(road, centerY);
+        const roadSegments = this.convertRoadSegment(road);
         roadSegments.forEach(segment => {
           layout.roads.push(segment);
         });
@@ -260,7 +260,7 @@ export class CityGeneratorService {
     if (generatedCity.buildings && Array.isArray(generatedCity.buildings)) {
       console.log(`Converting ${generatedCity.buildings.length} buildings`);
       generatedCity.buildings.forEach((building: any) => {
-        const buildingPlot = this.convertBuildingToPlot(building, centerY);
+        const buildingPlot = this.convertBuildingToPlot(building);
         if (buildingPlot) {
           layout.buildingPlots.push(buildingPlot);
         }
@@ -276,7 +276,7 @@ export class CityGeneratorService {
    * Convert a RoadSegment from ClassicCityGenerator to CityLayout RoadSegment(s)
    * Returns an array because some road types (like intersections) need multiple segments
    */
-  private convertRoadSegment(road: any, centerY: number): RoadSegment[] {
+  private convertRoadSegment(road: any): RoadSegment[] {
     const segments: RoadSegment[] = [];
     
     // Handle different road types
@@ -284,9 +284,11 @@ export class CityGeneratorService {
       case 'intersection':
         // For intersections, create both horizontal and vertical segments
         // Horizontal segment
+        const horizontalStartY = this.terrainGeneration.getHeightAtCoordinates(road.startX, road.startZ);
+        const horizontalEndY = this.terrainGeneration.getHeightAtCoordinates(road.endX, road.endZ);
         segments.push({
-          start: new Vector3(road.startX, centerY, road.startZ),
-          end: new Vector3(road.endX, centerY, road.endZ),
+          start: new Vector3(road.startX, horizontalStartY, road.startZ),
+          end: new Vector3(road.endX, horizontalEndY, road.endZ),
           width: 3,
           type: 'secondary',
           id: `road-${road.gridX}-${road.gridZ}-h`,
@@ -296,9 +298,11 @@ export class CityGeneratorService {
         });
         
         // Vertical segment
+        const verticalStartY = this.terrainGeneration.getHeightAtCoordinates(road.startX, road.startZ);
+        const verticalEndY = this.terrainGeneration.getHeightAtCoordinates(road.endX, road.endZ);
         segments.push({
-          start: new Vector3(road.startX, centerY, road.startZ),
-          end: new Vector3(road.endX, centerY, road.endZ),
+          start: new Vector3(road.startX, verticalStartY, road.startZ),
+          end: new Vector3(road.endX, verticalEndY, road.endZ),
           width: 3,
           type: 'secondary',
           id: `road-${road.gridX}-${road.gridZ}-v`,
@@ -309,9 +313,11 @@ export class CityGeneratorService {
         break;
       
       case 'horizontal':
+        const hStartY = this.terrainGeneration.getHeightAtCoordinates(road.startX, road.startZ);
+        const hEndY = this.terrainGeneration.getHeightAtCoordinates(road.endX, road.endZ);
         segments.push({
-          start: new Vector3(road.startX, centerY, road.startZ),
-          end: new Vector3(road.endX, centerY, road.endZ),
+          start: new Vector3(road.startX, hStartY, road.startZ),
+          end: new Vector3(road.endX, hEndY, road.endZ),
           width: 3,
           type: 'secondary',
           id: `road-${road.gridX}-${road.gridZ}`,
@@ -322,9 +328,11 @@ export class CityGeneratorService {
         break;
       
       case 'vertical':
+        const vStartY = this.terrainGeneration.getHeightAtCoordinates(road.startX, road.startZ);
+        const vEndY = this.terrainGeneration.getHeightAtCoordinates(road.endX, road.endZ);
         segments.push({
-          start: new Vector3(road.startX, centerY, road.startZ),
-          end: new Vector3(road.endX, centerY, road.endZ),
+          start: new Vector3(road.startX, vStartY, road.startZ),
+          end: new Vector3(road.endX, vEndY, road.endZ),
           width: 3,
           type: 'secondary',
           id: `road-${road.gridX}-${road.gridZ}`,
@@ -336,9 +344,11 @@ export class CityGeneratorService {
       
       case 'corner':
         // For corners, create a single segment representing the corner
+        const cornerStartY = this.terrainGeneration.getHeightAtCoordinates(road.startX, road.startZ);
+        const cornerEndY = this.terrainGeneration.getHeightAtCoordinates(road.endX, road.endZ);
         segments.push({
-          start: new Vector3(road.startX, centerY, road.startZ),
-          end: new Vector3(road.endX, centerY, road.endZ),
+          start: new Vector3(road.startX, cornerStartY, road.startZ),
+          end: new Vector3(road.endX, cornerEndY, road.endZ),
           width: 3,
           type: 'secondary',
           id: `road-${road.gridX}-${road.gridZ}`,
@@ -353,9 +363,11 @@ export class CityGeneratorService {
         // Make sure we have valid start and end coordinates
         if (road.startX !== undefined && road.startZ !== undefined && 
             road.endX !== undefined && road.endZ !== undefined) {
+          const defaultStartY = this.terrainGeneration.getHeightAtCoordinates(road.startX, road.startZ);
+          const defaultEndY = this.terrainGeneration.getHeightAtCoordinates(road.endX, road.endZ);
           segments.push({
-            start: new Vector3(road.startX, centerY, road.startZ),
-            end: new Vector3(road.endX, centerY, road.endZ),
+            start: new Vector3(road.startX, defaultStartY, road.startZ),
+            end: new Vector3(road.endX, defaultEndY, road.endZ),
             width: 3,
             type: 'secondary',
             id: `road-${road.gridX || 0}-${road.gridZ || 0}`,
@@ -372,7 +384,7 @@ export class CityGeneratorService {
   /**
    * Convert a Building from ClassicCityGenerator to CityLayout BuildingPlot
    */
-  private convertBuildingToPlot(building: any, centerY: number): BuildingPlot | null {
+  private convertBuildingToPlot(building: any): BuildingPlot | null {
     // Make sure we have valid building coordinates
     if (building.x === undefined || building.z === undefined) {
       return null;
@@ -414,8 +426,11 @@ export class CityGeneratorService {
       size = { width: building.type.width, depth: building.type.height };
     }
     
+    // Get the terrain height at the building position
+    const buildingY = this.terrainGeneration.getHeightAtCoordinates(building.x, building.z);
+    
     return {
-      position: new Vector3(building.x, centerY, building.z),
+      position: new Vector3(building.x, buildingY, building.z),
       size: size,
       type: buildingType,
       tier: CityTier.SmallTown // This will be set properly by the caller
@@ -434,7 +449,7 @@ export class CityGeneratorService {
       currentPopulation: 0,
       targetPopulation: targetPopulation,
       gridUnit: gridUnit,
-      centerY: center.y
+      centerY: 0 // Not used anymore, but kept for compatibility
     };
     
     // Create initial city block structure (like Transport Tycoon)
@@ -817,20 +832,26 @@ export class CityGeneratorService {
       switch (road.roadType) {
         case 'horizontal':
           // Horizontal road spans the full grid cell width
-          start = new Vector3(worldX, cityState.centerY, worldZ + cityState.gridUnit / 2);
-          end = new Vector3(worldX + cityState.gridUnit, cityState.centerY, worldZ + cityState.gridUnit / 2);
+          const hStartY = this.terrainGeneration.getHeightAtCoordinates(worldX, worldZ + cityState.gridUnit / 2);
+          const hEndY = this.terrainGeneration.getHeightAtCoordinates(worldX + cityState.gridUnit, worldZ + cityState.gridUnit / 2);
+          start = new Vector3(worldX, hStartY, worldZ + cityState.gridUnit / 2);
+          end = new Vector3(worldX + cityState.gridUnit, hEndY, worldZ + cityState.gridUnit / 2);
           break;
         case 'vertical':
           // Vertical road spans the full grid cell height
-          start = new Vector3(worldX + cityState.gridUnit / 2, cityState.centerY, worldZ);
-          end = new Vector3(worldX + cityState.gridUnit / 2, cityState.centerY, worldZ + cityState.gridUnit);
+          const vStartY = this.terrainGeneration.getHeightAtCoordinates(worldX + cityState.gridUnit / 2, worldZ);
+          const vEndY = this.terrainGeneration.getHeightAtCoordinates(worldX + cityState.gridUnit / 2, worldZ + cityState.gridUnit);
+          start = new Vector3(worldX + cityState.gridUnit / 2, vStartY, worldZ);
+          end = new Vector3(worldX + cityState.gridUnit / 2, vEndY, worldZ + cityState.gridUnit);
           break;
         case 'intersection':
           // Intersection - create both horizontal and vertical segments
           // Horizontal segment
+          const intHStartY = this.terrainGeneration.getHeightAtCoordinates(worldX, worldZ + cityState.gridUnit / 2);
+          const intHEndY = this.terrainGeneration.getHeightAtCoordinates(worldX + cityState.gridUnit, worldZ + cityState.gridUnit / 2);
           layout.roads.push({
-            start: new Vector3(worldX, cityState.centerY, worldZ + cityState.gridUnit / 2),
-            end: new Vector3(worldX + cityState.gridUnit, cityState.centerY, worldZ + cityState.gridUnit / 2),
+            start: new Vector3(worldX, intHStartY, worldZ + cityState.gridUnit / 2),
+            end: new Vector3(worldX + cityState.gridUnit, intHEndY, worldZ + cityState.gridUnit / 2),
             width: 3,
             type: 'secondary',
             id: `road-${road.gridX}-${road.gridZ}-h`,
@@ -839,9 +860,11 @@ export class CityGeneratorService {
             gridZ: road.gridZ
           });
           // Vertical segment
+          const intVStartY = this.terrainGeneration.getHeightAtCoordinates(worldX + cityState.gridUnit / 2, worldZ);
+          const intVEndY = this.terrainGeneration.getHeightAtCoordinates(worldX + cityState.gridUnit / 2, worldZ + cityState.gridUnit);
           layout.roads.push({
-            start: new Vector3(worldX + cityState.gridUnit / 2, cityState.centerY, worldZ),
-            end: new Vector3(worldX + cityState.gridUnit / 2, cityState.centerY, worldZ + cityState.gridUnit),
+            start: new Vector3(worldX + cityState.gridUnit / 2, intVStartY, worldZ),
+            end: new Vector3(worldX + cityState.gridUnit / 2, intVEndY, worldZ + cityState.gridUnit),
             width: 3,
             type: 'secondary',
             id: `road-${road.gridX}-${road.gridZ}-v`,
@@ -876,8 +899,9 @@ export class CityGeneratorService {
         'civic': 'civic'
       };
       
+      const buildingY = this.terrainGeneration.getHeightAtCoordinates(worldX + cityState.gridUnit / 2, worldZ + cityState.gridUnit / 2);
       layout.buildingPlots.push({
-        position: new Vector3(worldX + cityState.gridUnit / 2, cityState.centerY, worldZ + cityState.gridUnit / 2),
+        position: new Vector3(worldX + cityState.gridUnit / 2, buildingY, worldZ + cityState.gridUnit / 2),
         size: { width: 3, depth: 3 },
         type: buildingTypeMap[building.buildingType],
         tier: CityTier.SmallTown // Will be set properly by caller

@@ -591,6 +591,37 @@ export class TerrainGenerationService {
    * @param z World Z coordinate
    * @returns The height at the specified coordinates, or 0 if not found
    */
+  public getHeightAtCoordinates(x: number, z: number): number {
+    // Convert world coordinates to chunk coordinates
+    const chunkX = Math.floor(x / this.CHUNK_SIZE);
+    const chunkZ = Math.floor(z / this.CHUNK_SIZE);
+    
+    // Convert world coordinates to local chunk coordinates
+    const localX = x - (chunkX * this.CHUNK_SIZE);
+    const localZ = z - (chunkZ * this.CHUNK_SIZE);
+    
+    // Get the chunk
+    const chunkKey = `${chunkX},${chunkZ}`;
+    const chunk = this.world[chunkKey];
+    
+    // Return height if chunk and grid exist
+    if (chunk && chunk.grid && 
+        localZ >= 0 && localZ < this.CHUNK_SIZE && 
+        localX >= 0 && localX < this.CHUNK_SIZE) {
+      const height = chunk.grid[localZ][localX].height;
+      return height !== null ? height * 0.5 : 0; // Apply vertical scale
+    }
+    
+    // If we can't find the chunk or it's out of bounds, return 0
+    return 0;
+  }
+
+  /**
+   * Get the height at the specified world coordinates
+   * @param x World X coordinate
+   * @param z World Z coordinate
+   * @returns The height at the specified coordinates, or 0 if not found
+   */
   public getHeightAt(x: number, z: number): number {
     // Convert world coordinates to chunk coordinates
     const chunkX = Math.floor(x / this.CHUNK_SIZE);

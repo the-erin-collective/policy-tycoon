@@ -33,7 +33,7 @@ export class GameSceneComponent implements OnInit, OnDestroy {
           waterLevel: 0,
           steepness: 1,
           continuity: 3,
-          renderDistance: 2
+          renderDistance: 10
         };
         
         await this.terrainGenerationService.generateWorld(config);
