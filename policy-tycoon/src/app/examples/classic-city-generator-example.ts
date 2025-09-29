@@ -16,7 +16,7 @@ import { CitySize } from '../data/models/city-generation';
 import { Scene, Engine, NullEngine } from '@babylonjs/core';
 
 // Example function to demonstrate ClassicCityGenerator usage
-export function demonstrateClassicCityGenerator(): void {
+export async function demonstrateClassicCityGenerator(): Promise<void> {
   console.log('=== Classic City Generator Example ===');
 
   // Create dependencies
@@ -81,6 +81,15 @@ export function demonstrateClassicCityGenerator(): void {
   console.log(`Roads: ${largeCity.roads.length} segments`);
   console.log(`Buildings: ${largeCity.buildings.length}`);
   console.log(`Center: (${largeCity.centerX}, ${largeCity.centerZ})`);
+
+  // NEW: Demonstrate intelligent city generation with site finding
+  console.log('\n--- Generating Cities with Site Finding ---');
+  console.log('This method automatically finds suitable locations for cities:');
+  const foundCities = await cityGenerator.generateCities(3, 25); // Find 3 cities with minimum 25 buildable tiles
+  console.log(`Found and generated ${foundCities.length} cities using site finding`);
+  foundCities.forEach((city, index) => {
+    console.log(`  City ${index + 1}: ${city.name} at (${city.centerX}, ${city.centerZ}) with population ${city.population}`);
+  });
 
   // Show generation statistics
   console.log('\n--- Generation Statistics ---');
@@ -149,5 +158,5 @@ export function demonstrateClassicCityGenerator(): void {
 
 // Run the example if this file is executed directly
 if (typeof window === 'undefined') {
-  demonstrateClassicCityGenerator();
+  demonstrateClassicCityGenerator().catch(console.error);
 }

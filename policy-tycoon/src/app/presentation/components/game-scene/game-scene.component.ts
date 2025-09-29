@@ -9,7 +9,7 @@ import {
 import { BabylonEngineService } from '../../services/babylon-engine.service';
 import { ClassicCityGeneratorService } from '../../../application/services/classic-city-generator.service';
 import { TerrainGenerationService } from '../../../application/services/terrain-generation.service';
-import { CitySize } from '../../../data/models/city-generation';
+import { TerrainGenerationConfig } from '../../../data/models/terrain-models';
 
 @Component({
   selector: 'app-game-scene',
@@ -25,10 +25,21 @@ export class GameSceneComponent implements OnInit, OnDestroy {
   private terrainGenerationService = inject(TerrainGenerationService);
 
   ngOnInit(): void {
-    this.babylonEngineService.createScene(this.renderCanvas.nativeElement).then((scene) => {
+    this.babylonEngineService.createScene(this.renderCanvas.nativeElement).then(async (scene) => {
         this.terrainGenerationService.initialize(scene);
-        // Generate a city at the center of the terrain with medium size
-        this.cityGenerator.generateCity(0, 0, CitySize.Medium, new Set<string>());
+        
+        // Generate terrain first
+        const config: TerrainGenerationConfig = {
+          waterLevel: 0,
+          steepness: 1,
+          continuity: 3,
+          renderDistance: 2
+        };
+        
+        await this.terrainGenerationService.generateWorld(config);
+        
+        // Generate cities using the site finder to find valid locations
+        this.cityGenerator.generateCities(1);
     });
   }
 
