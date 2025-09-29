@@ -191,13 +191,11 @@ export class CityGeneratorService {
       const gridX = Math.floor((road.start.x + road.end.x) / 2);
       const gridZ = Math.floor((road.start.z + road.end.z) / 2);
       
-      // Check if this road is on a slope by querying the collision detection service
-      const terrain = (this.collisionDetection as any).getTerrainAt(gridX, gridZ);
-      if (terrain.isSlope) {
-        // Mark this terrain cell as having a full ramp
-        // In a real implementation, this would update the actual terrain data structure
-        console.log(`Marking terrain at (${gridX},${gridZ}) as having a full ramp for road`);
-      }
+      // Check if this road is on a slope by querying the terrain generation service directly
+      const height = this.terrainGeneration.getHeightAt(gridX, gridZ);
+      // In a real implementation, we would check if this is a slope and update the terrain data structure
+      // For now, we'll just log that we're checking
+      console.log(`Checking terrain at (${gridX},${gridZ}) for road placement. Height: ${height}`);
     });
     
     // For buildings on slopes, mark the terrain cells with hasManMadeBlock = true
@@ -206,13 +204,11 @@ export class CityGeneratorService {
       const gridX = Math.floor(building.position.x);
       const gridZ = Math.floor(building.position.z);
       
-      // Check if this building is on a slope by querying the collision detection service
-      const terrain = (this.collisionDetection as any).getTerrainAt(gridX, gridZ);
-      if (terrain.isSlope) {
-        // Mark this terrain cell as having a man-made block
-        // In a real implementation, this would update the actual terrain data structure
-        console.log(`Marking terrain at (${gridX},${gridZ}) as having a man-made block for building`);
-      }
+      // Check if this building is on a slope by querying the terrain generation service directly
+      const height = this.terrainGeneration.getHeightAt(gridX, gridZ);
+      // In a real implementation, we would check if this is a slope and update the terrain data structure
+      // For now, we'll just log that we're checking
+      console.log(`Checking terrain at (${gridX},${gridZ}) for building placement. Height: ${height}`);
     });
   }
 

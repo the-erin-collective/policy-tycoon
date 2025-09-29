@@ -163,6 +163,8 @@ export class TerrainGenerationService {
     
     this.isGenerating = false;
     this.isGeneratingSignal.set(false);
+    
+    console.log("Terrain generation with chunking and instancing complete");
   }
 
   private buildChunkMeshes(chunkX: number, chunkZ: number): void {

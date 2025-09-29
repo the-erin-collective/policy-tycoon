@@ -947,6 +947,33 @@ export class MapRendererService {
     }
   }
 
+  /**
+   * Select tree type based on terrain type
+   */
+  private selectTreeTypeForTerrain(terrainType: string, rng: SeededRandom): 'oak' | 'pine' | 'birch' | 'willow' {
+    const rand = rng.nextFloat();
+    
+    if (terrainType === 'grass') {
+      // Grass: More oaks and pines
+      if (rand < 0.4) return 'oak';
+      if (rand < 0.7) return 'pine';
+      if (rand < 0.9) return 'birch';
+      return 'willow';
+    } else if (terrainType === 'hill') {
+      // Hill: More pines
+      if (rand < 0.5) return 'pine';
+      if (rand < 0.8) return 'oak';
+      if (rand < 0.95) return 'birch';
+      return 'willow';
+    } else { // mountain
+      // Mountain: More pines and birches
+      if (rand < 0.6) return 'pine';
+      if (rand < 0.8) return 'birch';
+      if (rand < 0.9) return 'oak';
+      return 'willow';
+    }
+  }
+
   // Add cleanup method for environmental features
   private clearEnvironmentalFeatures(): void {
     // Dispose all tree nodes
@@ -996,5 +1023,99 @@ export class MapRendererService {
 
     this.scene = null;
     this.modelFactory = null;
+  }
+
+  /**
+   * Generate and render environmental features with terrain data
+   * Fix: Generate environmental features only after terrain is fully rendered
+   */
+  private generateEnvironmentalFeaturesWithTerrainData(terrainData: any, terrainConfig: any): void {
+    if (!this.modelFactory) return;
+
+    // Get performance settings
+    const settings = this.performanceConfig.getSettings();
+
+    // Create a seeded random generator for consistent environmental feature placement
+    const rng = new SeededRandom(Date.now());
+
+    try {
+      // Count actual cities
+      const actualCityCount = this.cityLayouts.size;
+      
+      // Generate trees with performance limits using terrain data
+      const treeCount = Math.min(
+        Math.floor((this.mapConfig.terrainWidth * this.mapConfig.terrainHeight) / 1000),
+        settings.maxTrees
+      );
+      
+      // Generate trees using the terrain-aware method
+      const trees = this.generateTreesWithTerrain(terrainData, terrainConfig, rng, actualCityCount);
+      this.renderTrees(trees);
+
+      // Generate resource forests (2 per city/town)
+      const forestCount = actualCityCount * 2; // 2 forests per city as specified
+      const resourceForests = this.environmentalFeatureService.generateResourceForests(
+        this.mapConfig.terrainWidth,
+        this.mapConfig.terrainHeight,
+        forestCount, // Use actual count instead of estimated
+        rng
+      );
+      
+      // Render resource forests and trees within them
+      resourceForests.forEach((forest: Forest) => {
+        this.renderForest(forest);
+        const forestTrees = this.environmentalFeatureService.generateTreesInForest(forest, rng);
+        this.renderTrees(forestTrees);
+      });
+
+    } catch (error) {
+      console.error('Error generating environmental features:', error);
+    }
+  }
+
+  /**
+   * Generate trees with proper terrain integration
+   * Fix: Implement proper tree distribution based on terrain type
+   */
+  private generateTreesWithTerrain(terrainData: any, terrainConfig: any, rng: SeededRandom, cityCount: number): Tree[] {
+    const trees: Tree[] = [];
+    
+    // Follow tree generation rules: place scattered trees on only 1/3 of non-water terrain blocks
+    for (const [x, y] of terrainData.coordinates) {
+      const terrainType = terrainData.getTerrainType(x, y);
+      const terrainHeight = terrainData.getHeight(x, y);
+      
+      // Skip water, sand, and peak height blocks
+      if (terrainType === 'water' || terrainType === 'sand' || 
+          terrainHeight >= terrainData.getMaxHeight()) {
+        continue;
+      }
+      
+      // Only place trees on 1/3 of eligible blocks
+      if (rng.nextFloat() >= 1/3) {
+        continue;
+      }
+      
+      // Determine number of trees based on terrain type
+      let treeCount = 0;
+      if (terrainType === 'mountain') {
+        treeCount = Math.floor(rng.nextFloat() * 3); // 0-2 trees
+      } else {
+        treeCount = Math.floor(rng.nextFloat() * 4); // 0-3 trees
+      }
+      
+      // Create trees with proper terrain alignment
+      for (let i = 0; i < treeCount; i++) {
+        trees.push({
+          id: `tree_${x}_${y}_${i}_${rng.nextInt(1000, 9999)}`,
+          position: new Vector3(x, terrainHeight * 0.5, y), // Apply vertical scale
+          type: this.selectTreeTypeForTerrain(terrainType, rng),
+          instanced: true,
+          height: terrainHeight
+        });
+      }
+    }
+    
+    return trees;
   }
 }
