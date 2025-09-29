@@ -11,7 +11,8 @@ import {
   ClassicCityGenerator, 
   GeneratedCity, 
   CitySize, 
-  SeededRandom 
+  SeededRandom,
+  CityStartPoint
 } from '../../data/models/city-generation';
 import { RecursiveRoadBuilderService } from './recursive-road-builder.service';
 import { BuildingPlacerService } from './building-placer.service';
@@ -19,7 +20,8 @@ import { CityNameGeneratorService } from './city-name-generator.service';
 import { CityConfigurationService } from './city-configuration.service';
 import { GenerationLoggerService } from './generation-logger.service';
 import { SeededRandom as SeededRandomImpl } from '../../utils/seeded-random';
-import { TerrainGenerationService } from './terrain-generation.service'; // NEW: Import terrain service
+import { TerrainGenerationService } from './terrain-generation.service';
+import { SiteFinderService } from './site-finder.service'; // NEW: Import site finder service
 
 @Injectable({
   providedIn: 'root'
@@ -51,8 +53,102 @@ export class ClassicCityGeneratorService implements ClassicCityGenerator {
     private cityNameGenerator: CityNameGeneratorService,
     private cityConfiguration: CityConfigurationService,
     private logger: GenerationLoggerService,
-    private terrainGeneration: TerrainGenerationService // NEW: Inject terrain service
+    private terrainGeneration: TerrainGenerationService,
+    private siteFinder: SiteFinderService // NEW: Inject site finder service
   ) {}
+
+  /**
+   * Generate multiple cities intelligently placed on the map
+   * Requirements: 4.2, 5.5, 7.1, 7.2, 10.1, 10.2, 10.3, 10.4
+   */
+  public async generateCities(
+    targetCityCount: number = 10,
+    minAreaSize: number = 25,
+    mapBounds?: { minX: number, maxX: number, minZ: number, maxZ: number },
+    seed?: number
+  ): Promise<GeneratedCity[]> {
+    // Set generating state
+    this._isGenerating.set(true);
+    
+    try {
+      // Initialize seeded random number generator
+      const rng: SeededRandom = new SeededRandomImpl(seed || Date.now());
+      
+      // Requirement 10.3 - Create logging system for generation steps and issues
+      this.logger.info(`Starting multi-city generation with target count: ${targetCityCount} and seed ${seed}`);
+      
+      // Step 1: Generate the terrain first
+      this.logger.info('Generating terrain');
+      // Note: This would typically be called from a higher-level service
+      // For now, we assume terrain is already generated
+      
+      // Step 2: Find all suitable starting points using the SiteFinderService
+      const defaultBounds = mapBounds || { minX: -100, maxX: 100, minZ: -100, maxZ: 100 };
+      this.logger.info(`Finding city start points within bounds: ${JSON.stringify(defaultBounds)}`);
+      
+      const cityStartPoints = this.siteFinder.findCityStartPoints(
+        targetCityCount,
+        minAreaSize,
+        defaultBounds
+      );
+      
+      if (cityStartPoints.length === 0) {
+        this.logger.error("FATAL: No suitable locations found to build any cities. The map may be unplayable.");
+        return [];
+      }
+      
+      this.logger.info(`Found ${cityStartPoints.length} suitable locations for cities`);
+      
+      // Step 3: Generate cities at each found location
+      const generatedCities: GeneratedCity[] = [];
+      const existingCityNames = new Set<string>();
+      
+      for (const startPoint of cityStartPoints) {
+        this.logger.info(`Generating city at (${startPoint.x}, ${startPoint.z}) with potential area size of ${startPoint.areaSize}`);
+        
+        // Calculate city size based on area size
+        const citySize = this.calculateCitySizeForArea(startPoint.areaSize);
+        
+        try {
+          const city = this.generateCity(
+            startPoint.x,
+            startPoint.z,
+            citySize,
+            existingCityNames,
+            rng.nextInt(1, 1000000)
+          );
+          
+          generatedCities.push(city);
+          existingCityNames.add(city.name);
+          
+          this.logger.info(`Successfully generated city: ${city.name} at (${startPoint.x}, ${startPoint.z})`);
+        } catch (error) {
+          this.logger.error(`Failed to generate city at (${startPoint.x}, ${startPoint.z}):`, error);
+        }
+      }
+      
+      // Update signals with new cities and stats
+      this._generatedCities.set(generatedCities);
+      
+      if (generatedCities.length > 0) {
+        // For simplicity, we'll use stats from the last generated city
+        const lastCity = generatedCities[generatedCities.length - 1];
+        this._lastGenerationStats.set(this.getGenerationStats(lastCity));
+      }
+      
+      this.logger.info(`Multi-city generation complete. Generated ${generatedCities.length} cities.`);
+      
+      return generatedCities;
+      
+    } catch (error) {
+      // Handle generation errors gracefully
+      this.logger.error(`Error during multi-city generation:`, error);
+      return [];
+    } finally {
+      // Clear generating state
+      this._isGenerating.set(false);
+    }
+  }
 
   /**
    * Generate a complete city with roads, buildings, population, and name
@@ -154,6 +250,16 @@ export class ClassicCityGeneratorService implements ClassicCityGenerator {
       // Clear generating state
       this._isGenerating.set(false);
     }
+  }
+
+  /**
+   * Calculate city size based on available area
+   */
+  private calculateCitySizeForArea(areaSize: number): CitySize {
+    // Example logic: Larger areas can support larger cities
+    if (areaSize > 200) return CitySize.Large;
+    if (areaSize > 100) return CitySize.Medium;
+    return CitySize.Small;
   }
 
   /**

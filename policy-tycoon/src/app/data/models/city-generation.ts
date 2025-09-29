@@ -212,3 +212,10 @@ export interface BuildingPlacementState {
   targetPopulation: number;
   availableSpots: Point[];
 }
+
+// City starting point for intelligent site selection
+export interface CityStartPoint {
+  x: number;
+  z: number;
+  areaSize: number; // The number of connected buildable tiles found.
+}

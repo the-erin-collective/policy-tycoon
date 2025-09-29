@@ -14,6 +14,7 @@ import { CityConfigurationService } from '../application/services/city-configura
 import { CollisionDetectionService } from '../application/services/collision-detection.service';
 import { GenerationLoggerService } from '../application/services/generation-logger.service';
 import { TerrainGenerationService } from '../application/services/terrain-generation.service';
+import { SiteFinderService } from '../application/services/site-finder.service'; // NEW: Import site finder service
 
 /**
  * Factory for creating service instances in zoneless mode
@@ -49,6 +50,7 @@ export class ZonelessServiceFactory {
     const roadNetworkBuilder = new RecursiveRoadBuilderService(collisionDetection, logger, terrainGeneration);
     const buildingPlacer = new BuildingPlacerService(collisionDetection, cityConfiguration, logger, terrainGeneration);
     const cityNameGenerator = new CityNameGeneratorService();
+    const siteFinder = new SiteFinderService(terrainGeneration, collisionDetection); // NEW: Create site finder
     
     // Initialize city name generator with scene
     cityNameGenerator.initialize(scene);
@@ -60,7 +62,8 @@ export class ZonelessServiceFactory {
       cityNameGenerator,
       cityConfiguration,
       logger,
-      terrainGeneration
+      terrainGeneration,
+      siteFinder // NEW: Pass site finder to constructor
     );
 
     return {

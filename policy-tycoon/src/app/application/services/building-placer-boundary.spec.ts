@@ -8,6 +8,7 @@ import { BuildingPlacerService } from './building-placer.service';
 import { CollisionDetectionService } from './collision-detection.service';
 import { CityConfigurationService } from './city-configuration.service';
 import { GenerationLoggerService } from './generation-logger.service';
+import { TerrainGenerationService } from './terrain-generation.service'; // NEW: Import terrain service
 import { SeededRandom } from '../../utils/seeded-random';
 import { 
   RoadNetwork, 
@@ -95,7 +96,8 @@ describe('BuildingPlacerService - Boundary-aware Placement', () => {
 
   beforeEach(() => {
     // Create mock services
-    collisionDetection = new CollisionDetectionService();
+    const terrainGeneration = new TerrainGenerationService(); // NEW: Create terrain service
+    collisionDetection = new CollisionDetectionService(terrainGeneration); // FIXED: Pass terrain service
     
     cityConfiguration = {
       selectRandomBuilding: jasmine.createSpy('selectRandomBuilding'),
@@ -112,17 +114,12 @@ describe('BuildingPlacerService - Boundary-aware Placement', () => {
       error: jasmine.createSpy('error')
     } as any;
 
-    // Mock terrain generation service
-    const terrainGeneration = {
-      // Add any required methods here
-    } as any;
-
     // Create service directly for zoneless mode
     service = new BuildingPlacerService(
       collisionDetection, 
       cityConfiguration, 
       logger,
-      terrainGeneration
+      terrainGeneration // NEW: Pass terrain service
     );
     
     rng = new SeededRandom(12345); // Fixed seed for deterministic tests

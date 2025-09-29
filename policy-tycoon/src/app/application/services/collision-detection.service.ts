@@ -52,10 +52,14 @@ export class CollisionDetectionService {
       };
     }
 
-    // Check terrain suitability
-    const terrainResult = this.validateTerrain(x, z);
-    if (terrainResult.hasCollision) {
-      return terrainResult;
+    // Check for water
+    const isWater = this.terrainService.isWaterAt(x, z);
+    if (isWater) {
+      return {
+        hasCollision: true,
+        collisionType: 'water',
+        message: `Cannot place road on water at position (${x}, ${z})`
+      };
     }
 
     return {
@@ -99,28 +103,6 @@ export class CollisionDetectionService {
     // Note: We can't fully validate building terrain here without knowing the building type
     // The full validation will be done in the BuildingPlacerService when the building type is known
 
-    return {
-      hasCollision: false,
-      collisionType: 'none'
-    };
-  }
-
-  /**
-   * Validate terrain suitability for road placement
-   */
-  private validateTerrain(x: number, z: number): CollisionResult {
-    // Check for water
-    // TODO: Get water level from terrain service
-    const isWater = this.terrainService.isWaterAt(x, z);
-    if (isWater) {
-      return {
-        hasCollision: true,
-        collisionType: 'water',
-        message: `Cannot place road on water at position (${x}, ${z})`
-      };
-    }
-
-    // Roads can be placed on most terrain now, with height difference validation done between adjacent tiles
     return {
       hasCollision: false,
       collisionType: 'none'
@@ -178,6 +160,18 @@ export class CollisionDetectionService {
            x <= this.mapBounds.maxX &&
            z >= this.mapBounds.minZ && 
            z <= this.mapBounds.maxZ;
+  }
+
+  /**
+   * Checks if movement is possible between two adjacent tiles based on height difference.
+   * @returns true if the height difference is 1 or less.
+   */
+  public isPassable(fromX: number, fromZ: number, toX: number, toZ: number): boolean {
+    const fromHeight = this.terrainService.getHeightAt(fromX, fromZ);
+    const toHeight = this.terrainService.getHeightAt(toX, toZ);
+
+    // Passable if the height difference is at most 1 unit
+    return Math.abs(fromHeight - toHeight) <= 1;
   }
 
   /**
@@ -239,18 +233,6 @@ export class CollisionDetectionService {
       { x: x, z: z + 1 },     // South
       { x: x, z: z - 1 }      // North
     ];
-  }
-
-  /**
-   * Checks if movement is possible between two adjacent tiles based on height difference.
-   * @returns true if the height difference is 1 or less.
-   */
-  public isPassable(fromX: number, fromZ: number, toX: number, toZ: number): boolean {
-    const fromHeight = this.terrainService.getHeightAt(fromX, fromZ);
-    const toHeight = this.terrainService.getHeightAt(toX, toZ);
-
-    // Passable if the height difference is at most 1 unit
-    return Math.abs(fromHeight - toHeight) <= 1;
   }
 
   /**

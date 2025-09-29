@@ -14,6 +14,7 @@ import { GenerationLoggerService } from '../../application/services/generation-l
 import { EnvironmentalFeatureService } from '../../application/services/environmental-feature.service';
 import { TerrainGenerationService } from '../../application/services/terrain-generation.service';
 import { PerformanceConfigService } from '../../application/services/performance-config.service';
+import { SiteFinderService } from '../../application/services/site-finder.service'; // NEW: Import site finder service
 
 describe('MapRendererService - Grid Integration - Zoneless', () => {
   let service: MapRendererService;
@@ -23,20 +24,22 @@ describe('MapRendererService - Grid Integration - Zoneless', () => {
 
   beforeEach(() => {
     // Core dependencies
-    const collisionDetection = new CollisionDetectionService();
-    const cityConfiguration = new CityConfigurationService();
     const logger = new GenerationLoggerService();
     const terrainGeneration = new TerrainGenerationService(logger);
+    const collisionDetection = new CollisionDetectionService(terrainGeneration); // FIXED: Pass terrain service
+    const cityConfiguration = new CityConfigurationService();
     const roadNetworkBuilder = new RecursiveRoadBuilderService(collisionDetection, logger, terrainGeneration);
     const buildingPlacer = new BuildingPlacerService(collisionDetection, cityConfiguration, logger, terrainGeneration);
     const cityNameGenerator = new CityNameGeneratorService();
+    const siteFinder = new SiteFinderService(terrainGeneration, collisionDetection); // NEW: Create site finder
     const classicCityGenerator = new ClassicCityGeneratorService(
       roadNetworkBuilder,
       buildingPlacer,
       cityNameGenerator,
       cityConfiguration,
       logger,
-      terrainGeneration
+      terrainGeneration,
+      siteFinder // NEW: Pass site finder to constructor
     );
 
     // High-level services

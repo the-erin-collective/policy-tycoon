@@ -8,3 +8,4 @@ export { GenerationLoggerService } from './generation-logger.service';
 export { RoadNetworkBuilderService } from './road-network-builder.service';
 export { RecursiveRoadBuilderService } from './recursive-road-builder.service';
 export { TimeManagerService } from './time-manager.service';
+export { SiteFinderService } from './site-finder.service';

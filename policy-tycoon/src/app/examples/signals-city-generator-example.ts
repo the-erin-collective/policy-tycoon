@@ -12,6 +12,7 @@ import { CityConfigurationService } from '../application/services/city-configura
 import { CollisionDetectionService } from '../application/services/collision-detection.service';
 import { GenerationLoggerService } from '../application/services/generation-logger.service';
 import { TerrainGenerationService } from '../application/services/terrain-generation.service';
+import { SiteFinderService } from '../application/services/site-finder.service'; // NEW: Import site finder service
 import { CitySize } from '../data/models/city-generation';
 import { Scene, Engine, NullEngine } from '@babylonjs/core';
 
@@ -26,6 +27,7 @@ export function demonstrateSignalsWithCityGenerator(): void {
   const roadNetworkBuilder = new RecursiveRoadBuilderService(collisionDetection, logger, terrainGeneration);
   const buildingPlacer = new BuildingPlacerService(collisionDetection, cityConfiguration, logger, terrainGeneration);
   const cityNameGenerator = new CityNameGeneratorService();
+  const siteFinder = new SiteFinderService(terrainGeneration, collisionDetection); // NEW: Create site finder service
   
   // Initialize BabylonJS scene
   const engine = new NullEngine();
@@ -39,7 +41,8 @@ export function demonstrateSignalsWithCityGenerator(): void {
     cityNameGenerator,
     cityConfiguration,
     logger,
-    terrainGeneration
+    terrainGeneration,
+    siteFinder // NEW: Pass site finder service
   );
 
   // Set up reactive effects to monitor state changes

@@ -9,6 +9,8 @@
 // import { describe, it, expect, beforeEach } from 'vitest';
 import { CollisionDetectionService, CollisionResult } from './collision-detection.service';
 import { RoadGenerationState, RoadTile, Direction, Point } from '../../data/models/city-generation';
+import { TerrainGenerationService } from './terrain-generation.service';
+import { GenerationLoggerService } from './generation-logger.service';
 
 // Mock TerrainGenerationService
 class MockTerrainGenerationService {

@@ -16,26 +16,29 @@ import { GenerationLoggerService } from '../../application/services/generation-l
 import { TerrainGenerationService } from '../../application/services/terrain-generation.service';
 import { CityTier } from '../../data/models/enums';
 import { City } from '../../data/models/core-entities';
+import { SiteFinderService } from '../../application/services/site-finder.service'; // NEW: Import site finder service
 
 describe('Performance Benchmarks for City Generation', () => {
   let cityGenerator: CityGeneratorService;
   
   beforeEach(() => {
     // Create services
-    const collisionDetection = new CollisionDetectionService();
-    const cityConfiguration = new CityConfigurationService();
     const logger = new GenerationLoggerService();
     const terrainGeneration = new TerrainGenerationService(logger); // NEW: Create terrain service
+    const collisionDetection = new CollisionDetectionService(terrainGeneration); // FIXED: Pass terrain service
+    const cityConfiguration = new CityConfigurationService();
     const roadNetworkBuilder = new RecursiveRoadBuilderService(collisionDetection, logger, terrainGeneration); // Using recursive road builder
     const buildingPlacer = new BuildingPlacerService(collisionDetection, cityConfiguration, logger, terrainGeneration); // NEW: Provide terrain service
     const cityNameGenerator = new CityNameGeneratorService();
+    const siteFinder = new SiteFinderService(terrainGeneration, collisionDetection); // NEW: Create site finder
     const classicCityGenerator = new ClassicCityGeneratorService(
       roadNetworkBuilder,
       buildingPlacer,
       cityNameGenerator,
       cityConfiguration,
       logger,
-      terrainGeneration // NEW: Provide terrain service
+      terrainGeneration, // NEW: Provide terrain service
+      siteFinder // NEW: Provide site finder service
     );
     
     cityGenerator = new CityGeneratorService(classicCityGenerator, terrainGeneration, collisionDetection); // NEW: Provide all required services

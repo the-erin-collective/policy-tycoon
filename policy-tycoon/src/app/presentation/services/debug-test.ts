@@ -6,6 +6,7 @@ import { CityConfigurationService } from '../../application/services/city-config
 import { CollisionDetectionService } from '../../application/services/collision-detection.service';
 import { GenerationLoggerService } from '../../application/services/generation-logger.service';
 import { TerrainGenerationService } from '../../application/services/terrain-generation.service';
+import { SiteFinderService } from '../../application/services/site-finder.service'; // NEW: Import site finder service
 import { CitySize } from '../../data/models/city-generation';
 
 // Create a simple test to debug the conversion
@@ -20,13 +21,15 @@ async function debugConversion() {
   const roadNetworkBuilder = new RecursiveRoadBuilderService(collisionDetection, logger, terrainGeneration);
   const buildingPlacer = new BuildingPlacerService(collisionDetection, cityConfiguration, logger, terrainGeneration);
   const cityNameGenerator = new CityNameGeneratorService();
+  const siteFinder = new SiteFinderService(terrainGeneration, collisionDetection); // NEW: Create site finder service
   const classicCityGenerator = new ClassicCityGeneratorService(
     roadNetworkBuilder,
     buildingPlacer,
     cityNameGenerator,
     cityConfiguration,
     logger,
-    terrainGeneration
+    terrainGeneration,
+    siteFinder // NEW: Pass site finder service
   );
   
   // Generate a city
